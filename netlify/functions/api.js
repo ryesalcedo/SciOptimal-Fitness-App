@@ -25,7 +25,7 @@ const inMemoryDB = {
 };
 
 // JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || 'scioptimal-super-secret-jwt-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Generate simple IDs
 const generateId = () => 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
