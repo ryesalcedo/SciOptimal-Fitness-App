@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { suggestedGainRate } from '../services/coaching';
 import { OnboardingInput, useAppStore } from '../store';
 
 const EQUIPMENT = ['Barbell', 'Dumbbells', 'Bench', 'Pull-up Bar', 'Cables', 'Machines', 'Kettlebells', 'Bands'];
@@ -53,7 +54,7 @@ export default function Onboarding() {
       <p className="lede">
         {step === 0 && 'Calories start from these numbers, then follow your food log and weight trend.'}
         {step === 1 && 'Lose, maintain, or gain. The rate sets the surplus or deficit. One weigh-in will not move it.'}
-        {step === 2 && 'The routine uses your days, session length, and the equipment you actually have.'}
+        {step === 2 && 'The routine uses your days, session length, and the equipment you actually have. 75 minutes fits the full growth dose, about 10–16 hard sets per muscle each week.'}
       </p>
 
       {step === 0 && (
@@ -81,7 +82,8 @@ export default function Onboarding() {
               <button key={goalType} type="button" className={form.goalType === goalType ? 'choice on' : 'choice'} onClick={() => setForm({
                 ...form,
                 goalType,
-                rateLbPerWeek: goalType === 'gain' ? 0.25 : 0.5,
+                rateLbPerWeek: goalType === 'gain' ? suggestedGainRate(form.weight, form.experience) : goalType === 'lose' ? 0.5 : 0,
+                sessionMinutes: goalType === 'gain' ? 75 : 60,
                 targetWeight: goalType === 'gain' ? form.weight + 8 : goalType === 'lose' ? Math.max(form.weight - 10, 100) : form.weight,
               })}>
                 {goalType}
@@ -119,7 +121,11 @@ export default function Onboarding() {
           </div>
           <div className="choice-row">
             {(['beginner', 'intermediate', 'advanced'] as const).map((experience) => (
-              <button key={experience} type="button" className={form.experience === experience ? 'choice on' : 'choice'} onClick={() => setForm({ ...form, experience })}>
+              <button key={experience} type="button" className={form.experience === experience ? 'choice on' : 'choice'} onClick={() => setForm({
+                ...form,
+                experience,
+                rateLbPerWeek: form.goalType === 'gain' ? suggestedGainRate(form.weight, experience) : form.rateLbPerWeek,
+              })}>
                 {experience}
               </button>
             ))}

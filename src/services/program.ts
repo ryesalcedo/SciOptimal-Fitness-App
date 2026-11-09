@@ -35,6 +35,8 @@ export interface TrainingProgram {
   name: string;
   days: ProgramDay[];
   schedule: number[];
+  startedAt: string;
+  volumeNote?: string;
 }
 
 export interface SetPerformance {
@@ -115,6 +117,24 @@ const LIBRARY: Array<Omit<ProgramExercise, 'id' | 'sets' | 'repLow' | 'repHigh' 
     ],
   },
   {
+    muscle: 'glutes',
+    secondary: ['hamstrings'],
+    options: [
+      { name: 'Dumbbell Hip Thrust', equipment: 'dumbbell' },
+      { name: 'Barbell Hip Thrust', equipment: 'barbell' },
+      { name: 'Glute Bridge', equipment: 'bodyweight' },
+    ],
+  },
+  {
+    muscle: 'back',
+    secondary: ['biceps'],
+    options: [
+      { name: 'Chest-Supported Dumbbell Row', equipment: 'dumbbell' },
+      { name: 'Seal Row', equipment: 'barbell' },
+      { name: 'Machine Row', equipment: 'machine' },
+    ],
+  },
+  {
     muscle: 'chest',
     secondary: ['shoulders'],
     options: [
@@ -159,23 +179,54 @@ const LIBRARY: Array<Omit<ProgramExercise, 'id' | 'sets' | 'repLow' | 'repHigh' 
       { name: 'Hanging Knee Raise', equipment: 'pullup' },
     ],
   },
+  {
+    muscle: 'quads',
+    secondary: ['glutes'],
+    options: [
+      { name: 'Bulgarian Split Squat', equipment: 'dumbbell' },
+      { name: 'Barbell Split Squat', equipment: 'barbell' },
+      { name: 'Bodyweight Split Squat', equipment: 'bodyweight' },
+    ],
+  },
+  {
+    muscle: 'hamstrings',
+    secondary: ['glutes'],
+    options: [
+      { name: 'Dumbbell Leg Curl', equipment: 'dumbbell' },
+      { name: 'Machine Leg Curl', equipment: 'machine' },
+      { name: 'Sliding Leg Curl', equipment: 'bodyweight' },
+    ],
+  },
 ];
 
-const SPLITS: Record<string, Array<{ name: string; muscles: string[] }>> = {
+const BIG_MUSCLES = new Set(['quads', 'hamstrings', 'glutes', 'chest', 'back', 'shoulders']);
+
+const DAY_TEMPLATES: Record<string, Array<{ name: string; muscles: string[] }>> = {
   'Full body': [
-    { name: 'Full Body A', muscles: ['quads', 'chest', 'back', 'shoulders', 'core'] },
-    { name: 'Full Body B', muscles: ['hamstrings', 'back', 'chest', 'glutes', 'biceps'] },
+    { name: 'Full Body A', muscles: ['quads', 'hamstrings', 'chest', 'back', 'shoulders', 'biceps'] },
+    { name: 'Full Body B', muscles: ['hamstrings', 'quads', 'back', 'chest', 'shoulders', 'triceps'] },
+    { name: 'Full Body C', muscles: ['quads', 'hamstrings', 'chest', 'back', 'glutes', 'core'] },
   ],
   'Upper / lower': [
-    { name: 'Upper A', muscles: ['chest', 'back', 'shoulders', 'biceps', 'triceps'] },
-    { name: 'Lower A', muscles: ['quads', 'hamstrings', 'glutes', 'core'] },
-    { name: 'Upper B', muscles: ['back', 'chest', 'shoulders', 'triceps', 'biceps'] },
-    { name: 'Lower B', muscles: ['hamstrings', 'quads', 'glutes', 'core'] },
+    { name: 'Upper A', muscles: ['chest', 'back', 'shoulders', 'chest', 'shoulders', 'biceps'] },
+    { name: 'Lower A', muscles: ['quads', 'hamstrings', 'glutes', 'quads', 'hamstrings', 'glutes'] },
+    { name: 'Upper B', muscles: ['back', 'chest', 'shoulders', 'back', 'shoulders', 'triceps'] },
+    { name: 'Lower B', muscles: ['hamstrings', 'quads', 'glutes', 'hamstrings', 'quads', 'glutes'] },
   ],
-  'Push / pull / legs': [
+  'Upper / lower / push / pull / legs': [
+    { name: 'Upper', muscles: ['chest', 'back', 'shoulders', 'biceps', 'triceps'] },
+    { name: 'Lower', muscles: ['quads', 'hamstrings', 'glutes', 'core'] },
     { name: 'Push', muscles: ['chest', 'shoulders', 'triceps', 'chest', 'shoulders'] },
     { name: 'Pull', muscles: ['back', 'back', 'biceps', 'shoulders', 'core'] },
-    { name: 'Legs', muscles: ['quads', 'hamstrings', 'glutes', 'quads', 'core'] },
+    { name: 'Legs', muscles: ['quads', 'hamstrings', 'glutes', 'quads', 'hamstrings'] },
+  ],
+  'Push / pull / legs': [
+    { name: 'Push A', muscles: ['chest', 'shoulders', 'triceps', 'chest', 'shoulders', 'triceps'] },
+    { name: 'Pull A', muscles: ['back', 'back', 'biceps', 'shoulders', 'biceps', 'core'] },
+    { name: 'Legs A', muscles: ['quads', 'hamstrings', 'glutes', 'quads', 'hamstrings', 'core'] },
+    { name: 'Push B', muscles: ['chest', 'shoulders', 'triceps', 'chest', 'shoulders', 'triceps'] },
+    { name: 'Pull B', muscles: ['back', 'back', 'biceps', 'shoulders', 'biceps', 'core'] },
+    { name: 'Legs B', muscles: ['hamstrings', 'quads', 'glutes', 'hamstrings', 'quads', 'core'] },
   ],
 };
 
@@ -229,6 +280,97 @@ export function exerciseCount(sessionMinutes: number): number {
   return 6;
 }
 
+export function weeklySetTarget(muscle: string, goal: GoalType, experience: Experience): number {
+  const big = BIG_MUSCLES.has(muscle);
+  if (goal === 'gain') {
+    if (experience === 'advanced') return big ? 14 : 10;
+    if (experience === 'beginner') return big ? 10 : 6;
+    return big ? 12 : 8;
+  }
+  if (goal === 'lose') return big ? (experience === 'advanced' ? 10 : 8) : 6;
+  if (experience === 'advanced') return big ? 12 : 8;
+  if (experience === 'beginner') return big ? 8 : 6;
+  return big ? 10 : 8;
+}
+
+export function isIsolation(exercise: Pick<ProgramExercise, 'muscle' | 'secondary'>): boolean {
+  return exercise.muscle === 'biceps' || exercise.muscle === 'triceps' || exercise.muscle === 'core' || exercise.secondary.length === 0;
+}
+
+export function loadJump(exercise: Pick<ProgramExercise, 'muscle' | 'secondary' | 'equipment'>, weight: number): number {
+  if (isIsolation(exercise)) return 2.5;
+  const heavyBarbell = (exercise.muscle === 'quads' || exercise.muscle === 'hamstrings') && exercise.equipment === 'barbell' && weight >= 100;
+  return heavyBarbell ? 10 : 5;
+}
+
+export function weeklySets(program: TrainingProgram): Record<string, number> {
+  const totals: Record<string, number> = {};
+  program.days.forEach((day) => {
+    day.exercises.forEach((exercise) => {
+      totals[exercise.muscle] = (totals[exercise.muscle] || 0) + exercise.sets;
+    });
+  });
+  return totals;
+}
+
+export function deloadWeek(startedAt: string | undefined, date = new Date()): boolean {
+  if (!startedAt) return false;
+  const elapsed = date.getTime() - new Date(startedAt).getTime();
+  if (elapsed < 0) return false;
+  const week = Math.floor(elapsed / (7 * 24 * 60 * 60 * 1000));
+  return week > 0 && week % 6 === 5;
+}
+
+export function prescribedSets(sets: number, deload: boolean): number {
+  if (!deload) return sets;
+  return Math.max(2, Math.round(sets * 0.6));
+}
+
+function sessionMinutesUsed(exercises: ProgramExercise[]): number {
+  return exercises.reduce((sum, exercise) => sum + exercise.sets * (exercise.restSec + 40), 0) / 60;
+}
+
+function applyDose(exercise: ProgramExercise, appearances: number, goal: GoalType, experience: Experience) {
+  const cap = exercise.name === 'Plank' ? 3 : 4;
+  const weekly = weeklySetTarget(exercise.muscle, goal, experience);
+  exercise.sets = Math.min(cap, Math.max(2, Math.round(weekly / appearances)));
+  if (exercise.name === 'Plank') {
+    exercise.repLow = 30;
+    exercise.repHigh = 60;
+    exercise.restSec = 45;
+    return;
+  }
+  if (isIsolation(exercise)) {
+    exercise.repLow = 10;
+    exercise.repHigh = 15;
+    exercise.restSec = 90;
+    return;
+  }
+  exercise.repLow = 6;
+  exercise.repHigh = 10;
+  exercise.restSec = goal === 'lose' ? 150 : 180;
+}
+
+function fitWeek(days: ProgramDay[], minutes: number, goal: GoalType, experience: Experience) {
+  const all = days.flatMap((day) => day.exercises);
+  const surplus = (exercise: ProgramExercise) => {
+    const weekly = all.filter((item) => item.muscle === exercise.muscle).reduce((sum, item) => sum + item.sets, 0);
+    const over = weekly - weeklySetTarget(exercise.muscle, goal, experience);
+    return (isIsolation(exercise) ? 20 : 0) + over;
+  };
+  let guard = 0;
+  while (guard < 80 && days.some((day) => sessionMinutesUsed(day.exercises) > minutes)) {
+    guard += 1;
+    const crowded = days.filter((day) => sessionMinutesUsed(day.exercises) > minutes);
+    const candidate = crowded
+      .flatMap((day) => day.exercises)
+      .filter((exercise) => exercise.sets > 2 && exercise.name !== 'Plank')
+      .sort((a, b) => surplus(b) - surplus(a))[0];
+    if (!candidate) break;
+    candidate.sets -= 1;
+  }
+}
+
 export function trainingSchedule(days: number): number[] {
   if (days <= 3) return [1, 3, 5];
   if (days === 4) return [1, 2, 4, 5];
@@ -243,38 +385,63 @@ export function buildProgram(input: {
   experience: Experience;
   equipment: string[];
 }): TrainingProgram {
-  const splitName = input.days <= 3 ? 'Full body' : input.days === 4 ? 'Upper / lower' : 'Push / pull / legs';
-  const templates = SPLITS[splitName];
+  const splitName = input.days <= 3
+    ? 'Full body'
+    : input.days === 4
+      ? 'Upper / lower'
+      : input.days === 5
+        ? 'Upper / lower / push / pull / legs'
+        : 'Push / pull / legs';
+  const templates = DAY_TEMPLATES[splitName].slice(0, input.days === 6 ? 6 : input.days);
   const owned = ownedGear(input.equipment);
   const count = exerciseCount(input.sessionMinutes);
-  const sets = input.experience === 'beginner' ? 3 : input.experience === 'advanced' ? 4 : 3;
-  const repLow = input.goal === 'lose' ? 6 : 8;
-  const repHigh = input.goal === 'lose' ? 10 : 12;
-  const restSec = input.goal === 'lose' ? 120 : 90;
-
-  const days = templates.slice(0, input.days <= 3 ? 2 : templates.length).map((template) => {
+  const days = templates.map((template) => {
     const used = new Set<string>();
     const exercises: ProgramExercise[] = [];
     template.muscles.forEach((muscle) => {
       if (exercises.length >= count) return;
       const lift = pickLift(muscle, owned, used);
       if (!lift) return;
-      exercises.push({
-        ...lift,
-        sets: muscle === 'biceps' || muscle === 'triceps' || muscle === 'core' ? Math.max(2, sets - 1) : sets,
-        repLow: lift.name === 'Plank' ? 30 : repLow,
-        repHigh: lift.name === 'Plank' ? 60 : repHigh,
-        restSec: lift.name === 'Plank' ? 45 : restSec,
-      });
+      exercises.push(lift);
     });
     return { id: `day_${template.name.replace(/\s+/g, '_').toLowerCase()}`, name: template.name, exercises };
   });
+
+  const appearances = new Map<string, number>();
+  days.forEach((day) => {
+    day.exercises.forEach((exercise) => {
+      appearances.set(exercise.muscle, (appearances.get(exercise.muscle) || 0) + 1);
+    });
+  });
+  days.forEach((day) => {
+    day.exercises.forEach((exercise) => {
+      applyDose(exercise, appearances.get(exercise.muscle) || 1, input.goal, input.experience);
+    });
+  });
+  fitWeek(days, input.sessionMinutes, input.goal, input.experience);
+
+  const totals: Record<string, number> = {};
+  days.forEach((day) => {
+    day.exercises.forEach((exercise) => {
+      totals[exercise.muscle] = (totals[exercise.muscle] || 0) + exercise.sets;
+    });
+  });
+  const short = ['chest', 'back', 'quads', 'hamstrings'].filter((muscle) => (
+    (totals[muscle] || 0) > 0 && (totals[muscle] || 0) + 1 < weeklySetTarget(muscle, input.goal, input.experience)
+  ));
+  const volumeNote = short.length === 0
+    ? undefined
+    : input.sessionMinutes < 75
+      ? `${input.sessionMinutes} minutes trims a few sets. 75 minutes is the length that fits the full growth dose.`
+      : 'The biggest muscles are a set or two under the top of the range. Add one set on any lift that still feels strong.';
 
   return {
     id: `program_${Date.now()}`,
     name: splitName,
     days,
     schedule: trainingSchedule(input.days).slice(0, input.days),
+    startedAt: new Date().toISOString(),
+    volumeNote,
   };
 }
 
@@ -293,14 +460,24 @@ export function roundLoad(weight: number): number {
   return Math.round(weight * 2) / 2;
 }
 
-export function nextTarget(exercise: ProgramExercise, performance?: SetPerformance): { weight: number; reps: number; note: string } {
+export function nextTarget(
+  exercise: ProgramExercise,
+  performance?: SetPerformance,
+  options?: { deload?: boolean },
+): { weight: number; reps: number; note: string } {
   const working = performance && !performance.dropset ? performance : undefined;
   const weight = working?.weight ?? exercise.lastWeight ?? exercise.nextWeight ?? 0;
   const reps = working?.reps ?? exercise.lastReps ?? exercise.nextReps ?? exercise.repLow;
+  if (options?.deload) {
+    return {
+      weight,
+      reps: exercise.name === 'Plank' ? exercise.repLow : Math.max(exercise.repLow, reps),
+      note: 'Deload week. Keep this weight and stop two reps early. The load goes back up next week.',
+    };
+  }
   const toppedOut = reps >= exercise.repHigh && weight > 0 && exercise.name !== 'Plank';
   if (toppedOut) {
-    const jump = exercise.muscle === 'quads' || exercise.muscle === 'hamstrings' ? (weight >= 100 ? 10 : 5) : 5;
-    const nextWeight = roundLoad(weight + jump);
+    const nextWeight = roundLoad(weight + loadJump(exercise, weight));
     return {
       weight: nextWeight,
       reps: exercise.repLow,
@@ -314,21 +491,25 @@ export function nextTarget(exercise: ProgramExercise, performance?: SetPerforman
   if (!weight) {
     return { weight: 0, reps: exercise.repLow, note: `Pick a weight you can do for ${exercise.repLow} reps with 2 left in the tank.` };
   }
-  const aim = working && working.rir >= 2 && reps < exercise.repHigh ? reps + 1 : reps;
-  return { weight, reps: aim, note: `Stay at ${weight} lb and aim for ${aim} reps.` };
+  if (working && reps < exercise.repLow && working.rir <= 1) {
+    const nextWeight = roundLoad(Math.max(weight - loadJump(exercise, weight), loadJump(exercise, weight)));
+    return { weight: nextWeight, reps: exercise.repLow, note: `That set missed the range. Next time use ${nextWeight} lb and own ${exercise.repLow} reps.` };
+  }
+  const aim = working && working.rir >= 1 && reps < exercise.repHigh ? reps + 1 : reps;
+  return { weight, reps: aim, note: `Stay at ${weight} lb and aim for ${aim} reps. Rest long enough that the next set is still strong.` };
 }
 
-export function applyProgression(exercise: ProgramExercise, sets: SetPerformance[]): ProgramExercise {
+export function applyProgression(exercise: ProgramExercise, sets: SetPerformance[], options?: { deload?: boolean }): ProgramExercise {
   const working = [...sets].reverse().find((set) => !set.dropset) || sets[sets.length - 1];
   if (!working) return exercise;
-  const target = nextTarget(exercise, working);
+  const target = nextTarget(exercise, working, options);
   return {
     ...exercise,
     lastWeight: working.weight,
     lastReps: working.reps,
     lastRir: working.rir,
-    nextWeight: target.weight,
-    nextReps: target.reps,
+    nextWeight: options?.deload ? exercise.nextWeight || working.weight : target.weight,
+    nextReps: options?.deload ? exercise.nextReps || exercise.repLow : target.reps,
   };
 }
 

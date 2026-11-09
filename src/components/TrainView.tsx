@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../store';
-import { nextTarget, recoveryStatus, sessionForDate } from '../services/program';
+import { deloadWeek, nextTarget, prescribedSets, recoveryStatus, sessionForDate } from '../services/program';
 import { estimatedOneRepMax } from '../services/program';
 import { isPersonalRecord } from '../services/planScore';
 
 export default function TrainView() {
-  const { program, workoutHistory, activeSession, startSession, logSessionSet, finishSession, swapExercise } = useAppStore();
+  const { program, workoutHistory, activeSession, startSession, logSessionSet, finishSession, swapExercise, rebuildProgram } = useAppStore();
   const [rest, setRest] = useState(0);
   const [drafts, setDrafts] = useState<Record<string, { weight: string; reps: string; rir: number }>>({});
   useEffect(() => {
@@ -15,6 +15,7 @@ export default function TrainView() {
   }, [rest]);
 
   if (!program) return null;
+  const deload = deloadWeek(program.startedAt);
   const today = sessionForDate(program, new Date());
   const day = activeSession
     ? program.days.find((item) => item.id === activeSession.dayId) || today.day
@@ -57,7 +58,7 @@ export default function TrainView() {
     <div className="screen">
       <header className="top">
         <div>
-          <p className="eyebrow">{today.rest && !activeSession ? 'Rest day' : 'Training'}</p>
+          <p className="eyebrow">{deload ? 'Deload week' : today.rest && !activeSession ? 'Rest day' : 'Training'}</p>
           <h1>{day.name}</h1>
         </div>
         {activeSession ? (
@@ -67,11 +68,17 @@ export default function TrainView() {
         )}
       </header>
 
+      {!program.startedAt && (
+        <button type="button" className="primary wide" onClick={rebuildProgram}>Update to the growth plan</button>
+      )}
+      {deload && <p className="card">Volume is lighter this week so the next block can start fresh. Keep the weight, stop two reps early.</p>}
+      {program.volumeNote && !deload && <p className="card">{program.volumeNote}</p>}
       {rest > 0 && <p className="rest">Rest {Math.floor(rest / 60)}:{String(rest % 60).padStart(2, '0')} <button type="button" className="text-button" onClick={() => setRest(0)}>Skip</button></p>}
 
       {day.exercises.map((exercise) => {
         const logged = activeSession?.sets.filter((set) => set.exerciseId === exercise.id) || [];
-        const target = nextTarget(exercise, logged.filter((set) => !set.dropset).slice(-1)[0]);
+        const target = nextTarget(exercise, logged.filter((set) => !set.dropset).slice(-1)[0], { deload });
+        const sets = prescribedSets(exercise.sets, deload);
         const draft = drafts[exercise.id] || {
           weight: String(target.weight || ''),
           reps: String(target.reps || exercise.repLow),
@@ -84,7 +91,7 @@ export default function TrainView() {
             <div className="split">
               <div>
                 <h2>{exercise.name}</h2>
-                <p className="muted">{exercise.sets} sets · {exercise.repLow}–{exercise.repHigh} reps · {best ? `best e1RM ${best}` : 'no history yet'}</p>
+                <p className="muted">{sets} sets · {exercise.repLow}–{exercise.repHigh} reps · {restLabel(exercise.restSec)} · {best ? `best e1RM ${best}` : 'no history yet'}</p>
               </div>
               <button type="button" className="text-button" onClick={() => swapExercise(day.id, exercise.id)}>Swap</button>
             </div>
@@ -126,4 +133,10 @@ export default function TrainView() {
       </section>
     </div>
   );
+}
+
+function restLabel(seconds: number): string {
+  if (seconds % 60 === 0) return `${seconds / 60} min rest`;
+  if (seconds > 60) return `${Math.round((seconds / 60) * 10) / 10} min rest`;
+  return `${seconds}s rest`;
 }

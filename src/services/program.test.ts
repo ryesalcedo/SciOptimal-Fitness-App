@@ -1,4 +1,4 @@
-import { applyProgression, buildProgram, nextTarget, recoveryStatus } from './program';
+import { applyProgression, buildProgram, deloadWeek, nextTarget, recoveryStatus, weeklySets } from './program';
 
 describe('training program', () => {
   test('builds a dumbbell program without barbell lifts', () => {
@@ -40,6 +40,68 @@ describe('training program', () => {
     const updated = applyProgression(exercise, [{ weight: 40, reps: 8, rir: 2 }]);
     expect(updated.nextWeight).toBe(40);
     expect(updated.lastReps).toBe(8);
+  });
+
+  test('gives a 75-minute gain plan a full growth dose', () => {
+    const program = buildProgram({
+      goal: 'gain',
+      days: 4,
+      sessionMinutes: 75,
+      experience: 'intermediate',
+      equipment: ['Dumbbells', 'Bench'],
+    });
+    const totals = weeklySets(program);
+    expect(totals.chest).toBeGreaterThanOrEqual(10);
+    expect(totals.back).toBeGreaterThanOrEqual(10);
+    expect(totals.quads).toBeGreaterThanOrEqual(10);
+    expect(totals.hamstrings).toBeGreaterThanOrEqual(10);
+    const lifts = program.days.flatMap((day) => day.exercises);
+    expect(lifts.find((exercise) => exercise.muscle === 'chest')?.restSec).toBeGreaterThanOrEqual(150);
+    expect(lifts.find((exercise) => exercise.muscle === 'biceps')?.restSec).toBe(90);
+    program.days.forEach((day) => {
+      const minutes = day.exercises.reduce((sum, exercise) => sum + exercise.sets * (exercise.restSec + 40), 0) / 60;
+      expect(minutes).toBeLessThanOrEqual(76);
+    });
+  });
+
+  test('hits legs twice in a five-day week and chest every three-day session', () => {
+    const five = buildProgram({
+      goal: 'gain',
+      days: 5,
+      sessionMinutes: 75,
+      experience: 'intermediate',
+      equipment: ['Dumbbells', 'Bench'],
+    });
+    expect(five.days.filter((day) => day.exercises.some((exercise) => exercise.muscle === 'quads')).length).toBeGreaterThanOrEqual(2);
+    expect(five.days.filter((day) => day.exercises.some((exercise) => exercise.muscle === 'hamstrings')).length).toBeGreaterThanOrEqual(2);
+
+    const three = buildProgram({
+      goal: 'gain',
+      days: 3,
+      sessionMinutes: 75,
+      experience: 'intermediate',
+      equipment: ['Dumbbells', 'Bench'],
+    });
+    expect(three.days.filter((day) => day.exercises.some((exercise) => exercise.muscle === 'chest')).length).toBe(3);
+    expect(three.days.filter((day) => day.exercises.some((exercise) => exercise.muscle === 'quads')).length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('adds 2.5 lb on an isolation lift and does not raise the load on a deload', () => {
+    const curl = buildProgram({
+      goal: 'gain',
+      days: 4,
+      sessionMinutes: 75,
+      experience: 'intermediate',
+      equipment: ['Dumbbells', 'Bench'],
+    }).days.flatMap((day) => day.exercises).find((exercise) => exercise.muscle === 'biceps');
+    expect(curl).toBeTruthy();
+    const target = nextTarget(curl!, { weight: 30, reps: curl!.repHigh, rir: 1 });
+    expect(target.weight).toBe(32.5);
+    const held = applyProgression(curl!, [{ weight: 30, reps: curl!.repHigh, rir: 1 }], { deload: true });
+    expect(held.nextWeight).toBe(30);
+    const start = new Date('2026-01-01T00:00:00Z');
+    expect(deloadWeek(start.toISOString(), new Date(start.getTime() + 5 * 7 * 24 * 60 * 60 * 1000))).toBe(true);
+    expect(deloadWeek(start.toISOString(), new Date(start.getTime() + 4 * 7 * 24 * 60 * 60 * 1000))).toBe(false);
   });
 
   test('marks a muscle recovering and a secondary mover on a shorter clock', () => {

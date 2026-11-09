@@ -17,6 +17,7 @@ import { buildNutritionPlan, GoalType, NutritionPlan } from './services/coaching
 import {
   applyProgression,
   buildProgram,
+  deloadWeek,
   Experience,
   ProgramExercise,
   SetPerformance,
@@ -244,6 +245,7 @@ interface AppState {
   currentTab: number;
   completeOnboarding: (input: OnboardingInput) => void;
   setLockedPlan: (plan: LockedPlan) => void;
+  rebuildProgram: () => void;
   startSession: (dayId: string) => void;
   logSessionSet: (set: Omit<SessionSet, 'id'>) => void;
   finishSession: () => void;
@@ -793,6 +795,21 @@ export const useAppStore = create<AppState>()(
         checkIns: [...state.checkIns, plan],
       })),
 
+      rebuildProgram: () => {
+        const { userProfile, goal } = get();
+        if (!userProfile || !goal) return;
+        set({
+          program: buildProgram({
+            goal: goal.type,
+            days: goal.trainingDays,
+            sessionMinutes: goal.sessionMinutes,
+            experience: goal.experience,
+            equipment: userProfile.equipment,
+          }),
+          activeSession: null,
+        });
+      },
+
       startSession: (dayId) => {
         const day = get().program?.days.find((item) => item.id === dayId);
         if (!day) return;
@@ -838,13 +855,14 @@ export const useAppStore = create<AppState>()(
           };
         });
         const started = new Date(activeSession.startedAt).getTime();
+        const deload = deloadWeek(program.startedAt);
         const days = program.days.map((item) => {
           if (item.id !== activeSession.dayId) return item;
           return {
             ...item,
             exercises: item.exercises.map((exercise) => {
               const sets = grouped.get(exercise.id);
-              return sets?.length ? applyProgression(exercise, sets) : exercise;
+              return sets?.length ? applyProgression(exercise, sets, { deload }) : exercise;
             }),
           };
         });

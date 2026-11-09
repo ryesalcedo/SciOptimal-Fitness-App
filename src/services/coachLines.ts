@@ -30,7 +30,7 @@ export function coachLines(input: {
     lines.push(`${Math.round(input.proteinLeft)}g of protein left. That is the number that matters most for this goal.`);
   }
   if (input.stall && input.goal === 'gain') {
-    lines.push('Weight trend is flat and the lifts have not moved. A small calorie increase is the next lever.');
+    lines.push('Weight is flat and the loads have not moved. Add one set on the big lifts and take the next calorie step up.');
   }
   if (lines.length === 0) {
     lines.push(input.goal === 'lose'

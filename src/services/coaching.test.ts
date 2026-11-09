@@ -1,4 +1,4 @@
-import { buildNutritionPlan, smoothWeight } from './coaching';
+import { buildNutritionPlan, smoothWeight, suggestedGainRate } from './coaching';
 import { shiftDay } from '../utils/units';
 
 const profile = { sex: 'male' as const, age: 32, height: 70, weight: 185 };
@@ -61,6 +61,21 @@ describe('nutrition coaching', () => {
       today,
     });
     expect(maintaining.calories).toBeGreaterThan(cutting.calories + 300);
+  });
+
+  test('sets gain protein at about a gram per pound and keeps a surplus while weight is rising', () => {
+    const logged = series(185, 0.5 / 7, 14);
+    const plan = buildNutritionPlan({
+      profile,
+      goal: { type: 'gain', rateLbPerWeek: 0.5 },
+      trainingDays: 4,
+      intake: logged.map((day) => ({ date: day.date, calories: 3200 })),
+      weighIns: logged.map((day) => ({ date: day.date, weight: day.weight })),
+      today,
+    });
+    expect(plan.protein).toBeGreaterThanOrEqual(170);
+    expect(plan.calories).toBeGreaterThan(3200);
+    expect(suggestedGainRate(185, 'beginner')).toBeGreaterThan(suggestedGainRate(185, 'advanced'));
   });
 
   test('uses the body-stat estimate until there is a week of logs', () => {

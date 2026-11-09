@@ -38,6 +38,7 @@ export interface NutritionPlan {
 }
 
 const KCAL_PER_POUND = 3500;
+const KCAL_PER_POUND_OF_LEAN_GAIN = 2200;
 
 export function formulaExpenditure(profile: CoachingProfile, trainingDays: number): number {
   const weightKg = poundsToKilograms(profile.weight);
@@ -81,8 +82,14 @@ function signedRate(goal: CoachingGoal): number {
   return 0;
 }
 
+export function suggestedGainRate(weightLb: number, experience: 'beginner' | 'intermediate' | 'advanced'): number {
+  const fraction = experience === 'beginner' ? 0.004 : experience === 'advanced' ? 0.0015 : 0.0025;
+  const stepped = Math.round(weightLb * fraction * 4) / 4;
+  return Math.min(1, Math.max(0.25, stepped));
+}
+
 export function macrosFor(calories: number, weightLb: number, goalType: GoalType): { protein: number; carbs: number; fat: number; calories: number } {
-  const proteinPerLb = goalType === 'lose' ? 0.9 : 0.8;
+  const proteinPerLb = goalType === 'maintain' ? 0.8 : 1;
   let protein = Math.round(weightLb * proteinPerLb);
   protein = Math.min(protein, Math.round((calories * 0.4) / 4));
   const minimumFat = Math.max(Math.round(weightLb * 0.3), Math.round((calories * 0.2) / 9));
@@ -143,7 +150,8 @@ export function buildNutritionPlan(input: {
       value: point.trend,
     })));
     trendLbPerWeek = Math.round(slope * 7 * 100) / 100;
-    const raw = averageIntake - slope * KCAL_PER_POUND;
+    const kcalPerPound = input.goal.type === 'gain' ? KCAL_PER_POUND_OF_LEAN_GAIN : KCAL_PER_POUND;
+    const raw = averageIntake - slope * kcalPerPound;
     const low = formula * 0.65;
     const high = formula * 1.55;
     expenditure = Math.round(Math.min(high, Math.max(low, raw)));

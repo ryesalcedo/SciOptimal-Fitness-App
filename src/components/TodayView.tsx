@@ -40,7 +40,7 @@ export default function TodayView({ onFood, onTrain, onProgress }: { onFood: () 
   const weekWorkouts = workoutHistory.filter((workout) => new Date(workout.date) >= weekStart);
   const loggedDays = new Set(nutritionLog.filter((entry) => new Date(entry.date) >= weekStart).map((entry) => dayKey(entry.date))).size;
   const proteinDays = countProteinDays(nutritionLog, lockedPlan.protein, weekStart);
-  const plannedSets = (day?.exercises || []).reduce((sum, exercise) => sum + exercise.sets, 0) * goal.trainingDays;
+  const plannedSets = program.days.reduce((sum, programDay) => sum + programDay.exercises.reduce((inner, exercise) => inner + exercise.sets, 0), 0);
   const score = planScore({
     goal: goal.type,
     plannedWorkouts: goal.trainingDays,
