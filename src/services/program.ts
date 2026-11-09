@@ -280,17 +280,24 @@ export function exerciseCount(sessionMinutes: number): number {
   return 6;
 }
 
-export function weeklySetTarget(muscle: string, goal: GoalType, experience: Experience): number {
+export function weeklySetTarget(muscle: string, goal: GoalType, experience: Experience, age = 30): number {
   const big = BIG_MUSCLES.has(muscle);
+  let target: number;
   if (goal === 'gain') {
-    if (experience === 'advanced') return big ? 14 : 10;
-    if (experience === 'beginner') return big ? 10 : 6;
-    return big ? 12 : 8;
+    if (experience === 'advanced') target = big ? 14 : 10;
+    else if (experience === 'beginner') target = big ? 10 : 6;
+    else target = big ? 12 : 8;
+  } else if (goal === 'lose') {
+    target = big ? (experience === 'advanced' ? 10 : 8) : 6;
+  } else if (experience === 'advanced') {
+    target = big ? 12 : 8;
+  } else if (experience === 'beginner') {
+    target = big ? 8 : 6;
+  } else {
+    target = big ? 10 : 8;
   }
-  if (goal === 'lose') return big ? (experience === 'advanced' ? 10 : 8) : 6;
-  if (experience === 'advanced') return big ? 12 : 8;
-  if (experience === 'beginner') return big ? 8 : 6;
-  return big ? 10 : 8;
+  if (age >= 50) target -= 2;
+  return Math.max(big ? 6 : 4, target);
 }
 
 export function isIsolation(exercise: Pick<ProgramExercise, 'muscle' | 'secondary'>): boolean {
@@ -330,9 +337,9 @@ function sessionMinutesUsed(exercises: ProgramExercise[]): number {
   return exercises.reduce((sum, exercise) => sum + exercise.sets * (exercise.restSec + 40), 0) / 60;
 }
 
-function applyDose(exercise: ProgramExercise, appearances: number, goal: GoalType, experience: Experience) {
+function applyDose(exercise: ProgramExercise, appearances: number, goal: GoalType, experience: Experience, age: number) {
   const cap = exercise.name === 'Plank' ? 3 : 4;
-  const weekly = weeklySetTarget(exercise.muscle, goal, experience);
+  const weekly = weeklySetTarget(exercise.muscle, goal, experience, age);
   exercise.sets = Math.min(cap, Math.max(2, Math.round(weekly / appearances)));
   if (exercise.name === 'Plank') {
     exercise.repLow = 30;
@@ -343,19 +350,19 @@ function applyDose(exercise: ProgramExercise, appearances: number, goal: GoalTyp
   if (isIsolation(exercise)) {
     exercise.repLow = 10;
     exercise.repHigh = 15;
-    exercise.restSec = 90;
+    exercise.restSec = age >= 50 ? 120 : 90;
     return;
   }
-  exercise.repLow = 6;
-  exercise.repHigh = 10;
-  exercise.restSec = goal === 'lose' ? 150 : 180;
+  exercise.repLow = goal === 'lose' ? 8 : 6;
+  exercise.repHigh = goal === 'lose' ? 12 : 10;
+  exercise.restSec = (goal === 'lose' ? 150 : 180) + (age >= 50 ? 30 : 0);
 }
 
-function fitWeek(days: ProgramDay[], minutes: number, goal: GoalType, experience: Experience) {
+function fitWeek(days: ProgramDay[], minutes: number, goal: GoalType, experience: Experience, age: number) {
   const all = days.flatMap((day) => day.exercises);
   const surplus = (exercise: ProgramExercise) => {
     const weekly = all.filter((item) => item.muscle === exercise.muscle).reduce((sum, item) => sum + item.sets, 0);
-    const over = weekly - weeklySetTarget(exercise.muscle, goal, experience);
+    const over = weekly - weeklySetTarget(exercise.muscle, goal, experience, age);
     return (isIsolation(exercise) ? 20 : 0) + over;
   };
   let guard = 0;
@@ -384,7 +391,9 @@ export function buildProgram(input: {
   sessionMinutes: number;
   experience: Experience;
   equipment: string[];
+  age?: number;
 }): TrainingProgram {
+  const age = input.age ?? 30;
   const splitName = input.days <= 3
     ? 'Full body'
     : input.days === 4
@@ -415,10 +424,10 @@ export function buildProgram(input: {
   });
   days.forEach((day) => {
     day.exercises.forEach((exercise) => {
-      applyDose(exercise, appearances.get(exercise.muscle) || 1, input.goal, input.experience);
+      applyDose(exercise, appearances.get(exercise.muscle) || 1, input.goal, input.experience, age);
     });
   });
-  fitWeek(days, input.sessionMinutes, input.goal, input.experience);
+  fitWeek(days, input.sessionMinutes, input.goal, input.experience, age);
 
   const totals: Record<string, number> = {};
   days.forEach((day) => {
@@ -427,12 +436,13 @@ export function buildProgram(input: {
     });
   });
   const short = ['chest', 'back', 'quads', 'hamstrings'].filter((muscle) => (
-    (totals[muscle] || 0) > 0 && (totals[muscle] || 0) + 1 < weeklySetTarget(muscle, input.goal, input.experience)
+    (totals[muscle] || 0) > 0 && (totals[muscle] || 0) + 1 < weeklySetTarget(muscle, input.goal, input.experience, age)
   ));
+  const doseName = input.goal === 'lose' ? 'muscle-keeping dose' : input.goal === 'maintain' ? 'maintenance dose' : 'growth dose';
   const volumeNote = short.length === 0
     ? undefined
     : input.sessionMinutes < 75
-      ? `${input.sessionMinutes} minutes trims a few sets. 75 minutes is the length that fits the full growth dose.`
+      ? `${input.sessionMinutes} minutes trims a few sets. 75 minutes fits the full ${doseName}.`
       : 'The biggest muscles are a set or two under the top of the range. Add one set on any lift that still feels strong.';
 
   return {

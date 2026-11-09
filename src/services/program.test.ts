@@ -1,4 +1,4 @@
-import { applyProgression, buildProgram, deloadWeek, nextTarget, recoveryStatus, weeklySets } from './program';
+import { applyProgression, buildProgram, deloadWeek, nextTarget, recoveryStatus, weeklySetTarget, weeklySets } from './program';
 
 describe('training program', () => {
   test('builds a dumbbell program without barbell lifts', () => {
@@ -102,6 +102,32 @@ describe('training program', () => {
     const start = new Date('2026-01-01T00:00:00Z');
     expect(deloadWeek(start.toISOString(), new Date(start.getTime() + 5 * 7 * 24 * 60 * 60 * 1000))).toBe(true);
     expect(deloadWeek(start.toISOString(), new Date(start.getTime() + 4 * 7 * 24 * 60 * 60 * 1000))).toBe(false);
+  });
+
+  test('uses a smaller dose and a slower pace for an older lifter on a cut', () => {
+    expect(weeklySetTarget('chest', 'lose', 'intermediate', 55)).toBeLessThan(weeklySetTarget('chest', 'gain', 'intermediate', 30));
+    const older = buildProgram({
+      goal: 'lose',
+      days: 4,
+      sessionMinutes: 75,
+      experience: 'intermediate',
+      equipment: ['Dumbbells', 'Bench'],
+      age: 55,
+    });
+    const younger = buildProgram({
+      goal: 'gain',
+      days: 4,
+      sessionMinutes: 75,
+      experience: 'intermediate',
+      equipment: ['Dumbbells', 'Bench'],
+      age: 28,
+    });
+    const olderChest = older.days.flatMap((day) => day.exercises).find((exercise) => exercise.muscle === 'chest');
+    const youngerChest = younger.days.flatMap((day) => day.exercises).find((exercise) => exercise.muscle === 'chest');
+    expect(weeklySets(older).chest).toBeLessThan(weeklySets(younger).chest);
+    expect(olderChest?.restSec || 0).toBeGreaterThan(150);
+    expect(youngerChest?.repHigh).toBe(10);
+    expect(olderChest?.repHigh).toBe(12);
   });
 
   test('marks a muscle recovering and a secondary mover on a shorter clock', () => {

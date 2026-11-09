@@ -766,6 +766,7 @@ export const useAppStore = create<AppState>()(
           sessionMinutes: goal.sessionMinutes,
           experience: goal.experience,
           equipment: profile.equipment,
+          age: profile.age,
         });
         const plan = buildNutritionPlan({
           profile,
@@ -805,6 +806,7 @@ export const useAppStore = create<AppState>()(
             sessionMinutes: goal.sessionMinutes,
             experience: goal.experience,
             equipment: userProfile.equipment,
+            age: userProfile.age,
           }),
           activeSession: null,
         });

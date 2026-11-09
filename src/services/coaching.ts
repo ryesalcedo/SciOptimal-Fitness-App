@@ -82,10 +82,27 @@ function signedRate(goal: CoachingGoal): number {
   return 0;
 }
 
-export function suggestedGainRate(weightLb: number, experience: 'beginner' | 'intermediate' | 'advanced'): number {
-  const fraction = experience === 'beginner' ? 0.004 : experience === 'advanced' ? 0.0015 : 0.0025;
-  const stepped = Math.round(weightLb * fraction * 4) / 4;
-  return Math.min(1, Math.max(0.25, stepped));
+export function suggestedRate(input: {
+  weightLb: number;
+  sex: 'male' | 'female';
+  experience: 'beginner' | 'intermediate' | 'advanced';
+  goal: GoalType;
+}): number {
+  if (input.goal === 'maintain') return 0;
+  const sexFactor = input.sex === 'female' && input.goal === 'gain' ? 0.6 : 1;
+  const fraction = input.goal === 'lose'
+    ? (input.experience === 'beginner' ? 0.006 : input.experience === 'advanced' ? 0.004 : 0.005)
+    : (input.experience === 'beginner' ? 0.004 : input.experience === 'advanced' ? 0.0015 : 0.0025) * sexFactor;
+  const stepped = Math.round(input.weightLb * fraction * 4) / 4;
+  return Math.min(1.5, Math.max(0.25, stepped));
+}
+
+export function suggestedGainRate(
+  weightLb: number,
+  experience: 'beginner' | 'intermediate' | 'advanced',
+  sex: 'male' | 'female' = 'male',
+): number {
+  return suggestedRate({ weightLb, sex, experience, goal: 'gain' });
 }
 
 export function macrosFor(calories: number, weightLb: number, goalType: GoalType): { protein: number; carbs: number; fat: number; calories: number } {

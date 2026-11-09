@@ -1,4 +1,4 @@
-import { buildNutritionPlan, smoothWeight, suggestedGainRate } from './coaching';
+import { buildNutritionPlan, smoothWeight, suggestedGainRate, suggestedRate } from './coaching';
 import { shiftDay } from '../utils/units';
 
 const profile = { sex: 'male' as const, age: 32, height: 70, weight: 185 };
@@ -76,6 +76,9 @@ describe('nutrition coaching', () => {
     expect(plan.protein).toBeGreaterThanOrEqual(170);
     expect(plan.calories).toBeGreaterThan(3200);
     expect(suggestedGainRate(185, 'beginner')).toBeGreaterThan(suggestedGainRate(185, 'advanced'));
+    expect(suggestedGainRate(160, 'intermediate', 'female')).toBeLessThan(suggestedGainRate(160, 'intermediate', 'male'));
+    expect(suggestedRate({ weightLb: 140, sex: 'female', experience: 'intermediate', goal: 'lose' }))
+      .toBeLessThan(suggestedRate({ weightLb: 220, sex: 'male', experience: 'intermediate', goal: 'lose' }));
   });
 
   test('uses the body-stat estimate until there is a week of logs', () => {
