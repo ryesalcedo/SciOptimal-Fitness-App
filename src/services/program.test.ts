@@ -104,6 +104,28 @@ describe('training program', () => {
     expect(deloadWeek(start.toISOString(), new Date(start.getTime() + 4 * 7 * 24 * 60 * 60 * 1000))).toBe(false);
   });
 
+  test('puts an asked-for muscle first and gives it an extra set', () => {
+    const focused = buildProgram({
+      goal: 'gain',
+      days: 4,
+      sessionMinutes: 75,
+      experience: 'intermediate',
+      equipment: ['Dumbbells', 'Bench'],
+      emphasis: ['shoulders'],
+    });
+    const plain = buildProgram({
+      goal: 'gain',
+      days: 4,
+      sessionMinutes: 75,
+      experience: 'intermediate',
+      equipment: ['Dumbbells', 'Bench'],
+    });
+    const upper = focused.days.find((day) => day.name === 'Upper A');
+    expect(upper?.exercises[0].muscle).toBe('shoulders');
+    expect(weeklySets(focused).shoulders).toBeGreaterThanOrEqual(weeklySets(plain).shoulders);
+    expect(focused.volumeNote || '').toMatch(/shoulders/);
+  });
+
   test('uses a smaller dose and a slower pace for an older lifter on a cut', () => {
     expect(weeklySetTarget('chest', 'lose', 'intermediate', 55)).toBeLessThan(weeklySetTarget('chest', 'gain', 'intermediate', 30));
     const older = buildProgram({

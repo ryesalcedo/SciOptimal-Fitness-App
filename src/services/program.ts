@@ -392,8 +392,10 @@ export function buildProgram(input: {
   experience: Experience;
   equipment: string[];
   age?: number;
+  emphasis?: string[];
 }): TrainingProgram {
   const age = input.age ?? 30;
+  const emphasis = new Set(input.emphasis || []);
   const splitName = input.days <= 3
     ? 'Full body'
     : input.days === 4
@@ -407,7 +409,7 @@ export function buildProgram(input: {
   const days = templates.map((template) => {
     const used = new Set<string>();
     const exercises: ProgramExercise[] = [];
-    template.muscles.forEach((muscle) => {
+    [...template.muscles].sort((a, b) => Number(emphasis.has(b)) - Number(emphasis.has(a))).forEach((muscle) => {
       if (exercises.length >= count) return;
       const lift = pickLift(muscle, owned, used);
       if (!lift) return;
@@ -425,6 +427,7 @@ export function buildProgram(input: {
   days.forEach((day) => {
     day.exercises.forEach((exercise) => {
       applyDose(exercise, appearances.get(exercise.muscle) || 1, input.goal, input.experience, age);
+      if (emphasis.has(exercise.muscle) && exercise.name !== 'Plank' && exercise.sets < 4) exercise.sets += 1;
     });
   });
   fitWeek(days, input.sessionMinutes, input.goal, input.experience, age);
@@ -438,12 +441,17 @@ export function buildProgram(input: {
   const short = ['chest', 'back', 'quads', 'hamstrings'].filter((muscle) => (
     (totals[muscle] || 0) > 0 && (totals[muscle] || 0) + 1 < weeklySetTarget(muscle, input.goal, input.experience, age)
   ));
+  const focusNote = emphasis.size
+    ? `${Array.from(emphasis).join(', ')} get an extra set because that is the physique you asked for.`
+    : '';
   const doseName = input.goal === 'lose' ? 'muscle-keeping dose' : input.goal === 'maintain' ? 'maintenance dose' : 'growth dose';
-  const volumeNote = short.length === 0
-    ? undefined
+  const volumeNote = [focusNote, short.length === 0
+    ? ''
     : input.sessionMinutes < 75
       ? `${input.sessionMinutes} minutes trims a few sets. 75 minutes fits the full ${doseName}.`
-      : 'The biggest muscles are a set or two under the top of the range. Add one set on any lift that still feels strong.';
+      : 'The biggest muscles are a set or two under the top of the range. Add one set on any lift that still feels strong.']
+    .filter(Boolean)
+    .join(' ') || undefined;
 
   return {
     id: `program_${Date.now()}`,

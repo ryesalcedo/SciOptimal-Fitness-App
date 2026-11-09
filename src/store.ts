@@ -14,6 +14,7 @@ import {
 } from './services/accounts';
 import { dayKey, isSameDay, toDate } from './utils/units';
 import { buildNutritionPlan, GoalType, NutritionPlan } from './services/coaching';
+import { PhysiqueRead } from './services/physique';
 import {
   applyProgression,
   buildProgram,
@@ -85,6 +86,9 @@ export interface CoachingSettings {
   trainingDays: number;
   sessionMinutes: number;
   experience: Experience;
+  physique?: string;
+  physiqueSummary?: string;
+  emphasis?: string[];
 }
 
 export interface LockedPlan extends NutritionPlan {
@@ -215,6 +219,9 @@ export interface OnboardingInput {
   sessionMinutes: number;
   experience: Experience;
   equipment: string[];
+  physique?: string;
+  emphasis?: string[];
+  physiqueSummary?: string;
 }
 
 interface AppState {
@@ -244,6 +251,7 @@ interface AppState {
   checkIns: LockedPlan[];
   currentTab: number;
   completeOnboarding: (input: OnboardingInput) => void;
+  applyPhysique: (read: PhysiqueRead) => void;
   setLockedPlan: (plan: LockedPlan) => void;
   rebuildProgram: () => void;
   startSession: (dayId: string) => void;
@@ -759,6 +767,9 @@ export const useAppStore = create<AppState>()(
           trainingDays: input.trainingDays,
           sessionMinutes: input.sessionMinutes,
           experience: input.experience,
+          physique: input.physique,
+          physiqueSummary: input.physiqueSummary,
+          emphasis: input.emphasis,
         };
         const program = buildProgram({
           goal: goal.type,
@@ -767,6 +778,7 @@ export const useAppStore = create<AppState>()(
           experience: goal.experience,
           equipment: profile.equipment,
           age: profile.age,
+          emphasis: input.emphasis,
         });
         const plan = buildNutritionPlan({
           profile,
@@ -796,6 +808,52 @@ export const useAppStore = create<AppState>()(
         checkIns: [...state.checkIns, plan],
       })),
 
+      applyPhysique: (read) => {
+        const { userProfile, goal, lockedPlan, nutritionLog, progressHistory } = get();
+        if (!userProfile || !goal || !read.understood) return;
+        const nextGoal: CoachingSettings = {
+          ...goal,
+          type: read.goal,
+          rateLbPerWeek: read.rateLbPerWeek,
+          targetWeight: read.targetWeight,
+          physique: read.text,
+          physiqueSummary: read.summary,
+          emphasis: read.emphasis,
+          sessionMinutes: read.goal === 'gain' ? Math.max(goal.sessionMinutes, 75) : goal.sessionMinutes,
+        };
+        const intake = Object.entries(nutritionLog.reduce<Record<string, number>>((days, entry) => {
+          const key = dayKey(entry.date);
+          days[key] = (days[key] || 0) + entry.calories;
+          return days;
+        }, {})).map(([date, calories]) => ({ date, calories }));
+        const plan = buildNutritionPlan({
+          profile: userProfile,
+          goal: nextGoal,
+          trainingDays: nextGoal.trainingDays,
+          intake,
+          weighIns: progressHistory.map((entry) => ({ date: dayKey(entry.date), weight: entry.weight })),
+          previousCalories: lockedPlan?.calories,
+          previousSource: lockedPlan?.source,
+        });
+        const nextPlan: LockedPlan = { ...plan, mode: 'coached', updatedAt: new Date().toISOString() };
+        set({
+          goal: nextGoal,
+          userProfile: { ...userProfile, goalWeight: read.targetWeight },
+          program: buildProgram({
+            goal: nextGoal.type,
+            days: nextGoal.trainingDays,
+            sessionMinutes: nextGoal.sessionMinutes,
+            experience: nextGoal.experience,
+            equipment: userProfile.equipment,
+            age: userProfile.age,
+            emphasis: read.emphasis,
+          }),
+          lockedPlan: nextPlan,
+          checkIns: [...get().checkIns, nextPlan],
+          activeSession: null,
+        });
+      },
+
       rebuildProgram: () => {
         const { userProfile, goal } = get();
         if (!userProfile || !goal) return;
@@ -807,6 +865,7 @@ export const useAppStore = create<AppState>()(
             experience: goal.experience,
             equipment: userProfile.equipment,
             age: userProfile.age,
+            emphasis: goal.emphasis,
           }),
           activeSession: null,
         });

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CategoryScale, Chart as ChartJS, Filler, Legend, LinearScale, LineElement, PointElement, Tooltip } from 'chart.js';
 import { Line } from 'react-chartjs-2';
+import PhysiqueGoal from './PhysiqueGoal';
 import { useAppStore } from '../store';
 import { buildNutritionPlan, goalEtaWeeks, smoothWeight } from '../services/coaching';
 import { estimatedOneRepMax } from '../services/program';
@@ -10,7 +11,7 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip,
 
 export default function ProgressView() {
   const store = useAppStore();
-  const { userProfile, goal, lockedPlan, nutritionLog, progressHistory, workoutHistory, setLockedPlan, logout } = store;
+  const { userProfile, goal, lockedPlan, nutritionLog, progressHistory, workoutHistory, setLockedPlan, logout, applyPhysique } = store;
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState({ calories: '', protein: '', carbs: '', fat: '' });
   if (!userProfile || !goal || !lockedPlan) return null;
@@ -124,6 +125,15 @@ export default function ProgressView() {
         ) : (
           <p>{lockedPlan.calories} kcal · {lockedPlan.protein}P · {lockedPlan.carbs}C · {lockedPlan.fat}F</p>
         )}
+      </section>
+
+      <section className="card">
+        <p className="eyebrow">Physique</p>
+        <p>{goal.physiqueSummary || `${goal.type} · target ${goal.targetWeight} lb`}</p>
+        <PhysiqueGoal
+          body={{ sex: userProfile.sex, weight: userProfile.weight, experience: goal.experience }}
+          onApply={applyPhysique}
+        />
       </section>
 
       <section className="card">

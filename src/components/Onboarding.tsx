@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { suggestedRate } from '../services/coaching';
+import PhysiqueGoal from './PhysiqueGoal';
 import { OnboardingInput, useAppStore } from '../store';
 
 const EQUIPMENT = ['Barbell', 'Dumbbells', 'Bench', 'Pull-up Bar', 'Cables', 'Machines', 'Kettlebells', 'Bands'];
@@ -99,10 +100,27 @@ export default function Onboarding() {
             </label>
           )}
           <p className="muted">
-            {form.goalType === 'lose' && `${form.rateLbPerWeek} lb a week is paced to your size so the cut keeps muscle.`}
-            {form.goalType === 'gain' && `${form.rateLbPerWeek} lb a week is paced to your size and training age so the gain stays mostly muscle.`}
-            {form.goalType === 'maintain' && 'Calories stay at what you burn. Protein stays high enough to hold muscle.'}
+            {form.physiqueSummary
+              ? form.physiqueSummary
+              : form.goalType === 'lose'
+                ? `${form.rateLbPerWeek} lb a week is paced to your size so the cut keeps muscle.`
+                : form.goalType === 'gain'
+                  ? `${form.rateLbPerWeek} lb a week is paced to your size and training age so the gain stays mostly muscle.`
+                  : 'Calories stay at what you burn. Protein stays high enough to hold muscle.'}
           </p>
+          <PhysiqueGoal
+            body={{ sex: form.sex, weight: form.weight, experience: form.experience }}
+            onApply={(read) => setForm({
+              ...form,
+              goalType: read.goal,
+              rateLbPerWeek: read.rateLbPerWeek,
+              targetWeight: read.targetWeight,
+              sessionMinutes: read.goal === 'gain' ? 75 : form.sessionMinutes,
+              physique: read.text,
+              emphasis: read.emphasis,
+              physiqueSummary: read.summary,
+            })}
+          />
           <label>
             Target weight, lb
             <input type="number" value={form.targetWeight} onChange={(event) => setForm({ ...form, targetWeight: Number(event.target.value) })} />
