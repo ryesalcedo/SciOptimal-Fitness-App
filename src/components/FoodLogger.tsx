@@ -42,7 +42,7 @@ interface FoodLoggerProps {
 }
 
 export default function FoodLogger({ open, onClose, entry, isEditing = false }: FoodLoggerProps) {
-  const { addNutritionEntry, nutritionLog } = useAppStore();
+  const { addNutritionEntry, deleteNutritionEntry, nutritionLog } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -591,6 +591,8 @@ export default function FoodLogger({ open, onClose, entry, isEditing = false }: 
                         <ListItemSecondaryAction>
                           <IconButton
                             edge="end"
+                            aria-label={`Delete ${entry.food}`}
+                            onClick={() => deleteNutritionEntry(entry.id)}
                             sx={{ color: '#ff4444 !important' }}
                           >
                             <Delete />

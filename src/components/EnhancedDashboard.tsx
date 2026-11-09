@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Box,
   Card,
@@ -35,9 +35,12 @@ import {
 } from '@mui/icons-material';
 import { useAppStore } from '../store';
 import { format } from 'date-fns';
+import { NutritionCalculator } from '../services/nutritionCalculator';
+import { isSameDay, toDate } from '../utils/units';
 import WorkoutEditor from './WorkoutEditor';
 import FoodLogger from './FoodLogger';
 import WorkoutTracker from './WorkoutTracker';
+import DailyCheckIn from './DailyCheckIn';
 
 // Enhanced Dashboard with Apple Watch Integration and Smart AI
 export default function EnhancedDashboard() {
@@ -69,11 +72,32 @@ export default function EnhancedDashboard() {
   const [isGeneratingWorkout, setIsGeneratingWorkout] = useState(false);
   const [showWorkoutTracker, setShowWorkoutTracker] = useState(false);
 
+  const optimizedFor = useRef('');
+
   useEffect(() => {
-    if (userProfile && !isOptimizing) {
-      runAIOptimization();
-    }
-  }, [userProfile, isOptimizing, runAIOptimization]);
+    if (!userProfile) return;
+    const key = [
+      userProfile.id,
+      userProfile.weight,
+      userProfile.targetPhysique,
+      workoutHistory.length,
+      nutritionLog.length,
+      sleepLog.length,
+      progressHistory.length,
+      healthData ? 'health' : 'none',
+    ].join(':');
+    if (optimizedFor.current === key) return;
+    optimizedFor.current = key;
+    runAIOptimization();
+  }, [
+    userProfile,
+    workoutHistory.length,
+    nutritionLog.length,
+    sleepLog.length,
+    progressHistory.length,
+    healthData,
+    runAIOptimization,
+  ]);
 
   const handleSyncHealthData = async () => {
     setIsSyncing(true);
@@ -135,13 +159,10 @@ export default function EnhancedDashboard() {
     // Don't reset workoutAccepted so they can try again
   };
 
-  const todayWorkouts = workoutHistory.filter(w => 
-    new Date(w.date).toDateString() === new Date().toDateString()
-  );
+  const todayWorkouts = workoutHistory.filter(w => isSameDay(w.date));
 
-  const todayNutrition = nutritionLog.filter(n => 
-    new Date(n.date).toDateString() === new Date().toDateString()
-  );
+  const todayNutrition = nutritionLog.filter(n => isSameDay(n.date));
+  const nutritionTargets = userProfile ? NutritionCalculator.calculateNutritionTargets(userProfile) : null;
 
   const totalCalories = todayNutrition.reduce((sum, n) => sum + n.calories, 0);
   const totalProtein = todayNutrition.reduce((sum, n) => sum + n.protein, 0);
@@ -149,19 +170,15 @@ export default function EnhancedDashboard() {
   const totalFat = todayNutrition.reduce((sum, n) => sum + n.fat, 0);
 
   // Health metrics from Apple Watch
-  const todaySteps = healthData?.steps.find((s: any) => 
-    new Date(s.date).toDateString() === new Date().toDateString()
-  )?.count || 0;
+  const todaySteps = healthData?.steps.find((s) => isSameDay(s.date))?.count || 0;
 
-  const todayHeartRate = healthData?.heartRate.filter((h: any) => 
-    new Date(h.timestamp).toDateString() === new Date().toDateString()
-  ) || [];
+  const todayHeartRate = healthData?.heartRate.filter((h) => isSameDay(h.timestamp)) || [];
   const avgHeartRate = todayHeartRate.length > 0 
     ? todayHeartRate.reduce((sum: number, h: any) => sum + h.value, 0) / todayHeartRate.length 
     : 0;
 
   const restingHR = healthData?.restingHeartRate || 0;
-  const vo2Max = 45; // Default VO2 Max value
+  const vo2Max = healthData?.vo2Max || 0;
 
   // AI Optimization Score
   const optimizationScore = aiAnalysis?.overallScore || 0;
@@ -203,7 +220,7 @@ export default function EnhancedDashboard() {
             
             {isHealthDataConnected && lastHealthSync && (
               <Typography variant="body2" color="text.secondary">
-                Last sync: {format(lastHealthSync, 'MMM d, h:mm a')}
+                Last sync: {format(toDate(lastHealthSync), 'MMM d, h:mm a')}
               </Typography>
             )}
           </CardContent>
@@ -240,7 +257,7 @@ export default function EnhancedDashboard() {
               </Grid>
               <Grid item xs={6}>
                 <Typography variant="h4" color="success.main">
-                  {vo2Max}
+                  {isHealthDataConnected ? vo2Max : '—'}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">VO2 Max</Typography>
               </Grid>
@@ -623,10 +640,25 @@ export default function EnhancedDashboard() {
             </Box>
             <Typography variant="h4" color="primary.main">
               {totalCalories}
+              {nutritionTargets ? ` / ${nutritionTargets.calories}` : ''}
             </Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               calories consumed
             </Typography>
+            {nutritionTargets && (
+              <Box sx={{ mb: 2 }}>
+                <LinearProgress
+                  variant="determinate"
+                  value={Math.min(100, (totalCalories / nutritionTargets.calories) * 100)}
+                  sx={{ height: 8, borderRadius: 4, mb: 1 }}
+                />
+                <Typography variant="caption" color="text.secondary">
+                  Protein {totalProtein.toFixed(0)}/{nutritionTargets.protein}g · 
+                  Carbs {totalCarbs.toFixed(0)}/{nutritionTargets.carbs}g · 
+                  Fat {totalFat.toFixed(0)}/{nutritionTargets.fat}g
+                </Typography>
+              </Box>
+            )}
             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
               <Chip label={`Protein: ${totalProtein.toFixed(0)}g`} size="small" />
               <Chip label={`Carbs: ${totalCarbs.toFixed(0)}g`} size="small" />
@@ -673,6 +705,8 @@ export default function EnhancedDashboard() {
           </CardContent>
         </Card>
       </Grid>
+
+      <DailyCheckIn />
 
       {/* AI Optimization Insights */}
       <Grid item xs={12}>

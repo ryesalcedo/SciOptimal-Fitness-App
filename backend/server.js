@@ -15,18 +15,19 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// MongoDB Connection - Use Atlas cloud database
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://scioptimal:scioptimal123@cluster0.mongodb.net/scioptimal?retryWrites=true&w=majority';
+// MongoDB connection. Set MONGODB_URI in the environment. There is no default credential.
+const MONGODB_URI = process.env.MONGODB_URI;
 
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI is not set. The API will start, but database routes will fail until it is configured.');
+} else {
+  mongoose.connect(MONGODB_URI);
+}
 
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 db.once('open', () => {
-  console.log('Connected to MongoDB Atlas');
+  console.log('Connected to MongoDB');
 });
 
 // User Schema

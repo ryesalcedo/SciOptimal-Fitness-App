@@ -1,4 +1,34 @@
 import { UserProfile, WorkoutSession } from '../store';
+import { poundsToKilograms, toDate } from '../utils/units';
+
+const EQUIPMENT_TAGS: Record<string, string[]> = {
+  Dumbbells: ['dumbbells'],
+  Barbell: ['barbell', 'plates'],
+  Kettlebell: ['kettlebell', 'kettlebells'],
+  'Resistance Bands': ['resistance bands'],
+  'Pull-up Bar': ['pull-up bar'],
+  Bench: ['bench'],
+  'Squat Rack': ['squat rack'],
+  'Cardio Machine': ['cardio machine'],
+  'Yoga Mat': ['yoga mat'],
+  'Medicine Ball': ['medicine ball'],
+  TRX: ['trx'],
+  None: ['none'],
+};
+
+function ownedEquipment(profile: UserProfile): Set<string> {
+  const owned = new Set<string>(['none']);
+  const selected = (profile.equipment || []).filter((item) => item !== 'None');
+  if (selected.length === 0) return owned;
+  selected.forEach((item) => {
+    (EQUIPMENT_TAGS[item] || []).forEach((tag) => owned.add(tag));
+  });
+  return owned;
+}
+
+function canPerform(exercise: Exercise, owned: Set<string>): boolean {
+  return exercise.equipment.every((requirement) => owned.has(requirement));
+}
 
 export interface Exercise {
   id: string;
@@ -221,7 +251,7 @@ class WorkoutGeneratorService {
     const duration = exercises.length * 2.5;
     
     // Estimate calories burned (based on body weight and intensity)
-    const caloriesPerMinute = this.getCaloriesPerMinute(profile.weight, difficulty);
+    const caloriesPerMinute = this.getCaloriesPerMinute(poundsToKilograms(profile.weight), difficulty);
     const totalCalories = Math.round(duration * caloriesPerMinute);
     
     // Generate scientific notes
@@ -281,11 +311,17 @@ class WorkoutGeneratorService {
     const exerciseCount = this.getExerciseCount(focus);
     const today = new Date();
     
-    // Filter exercises by difficulty
-    const availableExercises = this.exerciseDatabase.filter(ex => ex.difficulty === difficulty);
+    const rank = { beginner: 1, intermediate: 2, advanced: 3 };
+    const owned = ownedEquipment(profile);
+    const availableExercises = this.exerciseDatabase.filter((exercise) =>
+      rank[exercise.difficulty] <= rank[difficulty] && canPerform(exercise, owned)
+    );
+    const fallbackExercises = availableExercises.length > 0
+      ? availableExercises
+      : this.exerciseDatabase.filter((exercise) => exercise.equipment.every((item) => item === 'none'));
     
     // Prioritize exercises based on focus
-    const prioritizedExercises = this.prioritizeExercises(availableExercises, focus, profile);
+    const prioritizedExercises = this.prioritizeExercises(fallbackExercises, focus, profile);
     
     // Select exercises ensuring variety
     for (let i = 0; i < Math.min(exerciseCount, prioritizedExercises.length); i++) {
@@ -294,7 +330,7 @@ class WorkoutGeneratorService {
       // Avoid repeating the same exercise from recent workouts
       const isRecent = previousWorkouts.some(workout => 
         workout.exercises.some(ex => ex.name === exercise.name) &&
-        (today.getTime() - workout.date.getTime()) < 3 * 24 * 60 * 60 * 1000 // 3 days
+        (today.getTime() - toDate(workout.date).getTime()) < 3 * 24 * 60 * 60 * 1000 // 3 days
       );
       
       if (!isRecent) {
@@ -353,7 +389,7 @@ class WorkoutGeneratorService {
   }
 
   private getCaloriesPerMinute(weight: number, difficulty: 'beginner' | 'intermediate' | 'advanced'): number {
-    const baseCalories = weight * 0.05; // Base calories per minute
+    const baseCalories = weight * 0.1; // kcal per minute from body weight in kilograms
     const difficultyMultiplier = {
       'beginner': 1.0,
       'intermediate': 1.3,
@@ -396,7 +432,7 @@ class WorkoutGeneratorService {
     
     const today = new Date();
     const lastWorkout = previousWorkouts[previousWorkouts.length - 1];
-    const daysSinceLastWorkout = (today.getTime() - lastWorkout.date.getTime()) / (1000 * 60 * 60 * 24);
+    const daysSinceLastWorkout = (today.getTime() - toDate(lastWorkout.date).getTime()) / (1000 * 60 * 60 * 24);
     
     if (daysSinceLastWorkout > 7) {
       return 'Extended rest period - returning to training with moderate intensity';
