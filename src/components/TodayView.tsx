@@ -5,11 +5,17 @@ import { nextTarget, recoveryStatus, sessionForDate } from '../services/program'
 import { planScore } from '../services/planScore';
 import { coachLines } from '../services/coachLines';
 import { dayKey } from '../utils/units';
+import CoachChat from './CoachChat';
+import { detectHomeServer, homeToken } from '../services/homeServer';
 
 export default function TodayView({ onFood, onTrain, onProgress }: { onFood: () => void; onTrain: () => void; onProgress: () => void }) {
   const store = useAppStore();
   const { userProfile, goal, lockedPlan, program, nutritionLog, progressHistory, workoutHistory, addProgressEntry } = store;
   const [weight, setWeight] = useState('');
+  const [needsHomeLogin, setNeedsHomeLogin] = useState(false);
+  React.useEffect(() => {
+    detectHomeServer().then((online) => setNeedsHomeLogin(online && !homeToken()));
+  }, []);
   if (!userProfile || !goal || !lockedPlan || !program) return null;
 
   const today = dayKey();
@@ -119,7 +125,10 @@ export default function TodayView({ onFood, onTrain, onProgress }: { onFood: () 
       <section className="card">
         <p className="eyebrow">Coach</p>
         {lines.map((line) => <p key={line}>{line}</p>)}
+        {goal.physiqueSummary && <p>{goal.physiqueSummary}</p>}
         <p className="muted">{score.note} Strength {score.strength} · Nutrition {score.nutrition} · Consistency {score.consistency}</p>
+        {needsHomeLogin && <p>Log out and sign in again so this account is one of the two stored on this PC.</p>}
+        <CoachChat body={{ sex: userProfile.sex, weight: userProfile.weight, experience: goal.experience }} />
         {(Math.abs(preview.calories - lockedPlan.calories) >= 20 || preview.source !== lockedPlan.source) && (
           <button type="button" className="text-button" onClick={onProgress}>
             Suggested target {preview.calories} kcal. Review it.

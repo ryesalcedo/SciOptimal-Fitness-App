@@ -8,10 +8,20 @@ import {
   authenticateAccount,
   emptySavedUserData,
   loadUserData,
+  localDataForEmail,
   registerAccount,
   SavedUserData,
   saveUserData,
 } from './services/accounts';
+import {
+  detectHomeServer,
+  homeLogin,
+  homeLogout,
+  homeRegister,
+  homeSave,
+  homeToken,
+  setHomeToken,
+} from './services/homeServer';
 import { dayKey, isSameDay, toDate } from './utils/units';
 import { buildNutritionPlan, GoalType, NutritionPlan } from './services/coaching';
 import { PhysiqueRead } from './services/physique';
@@ -312,6 +322,15 @@ function reviveList<T extends { date?: Date | string }>(items: T[] | undefined):
   }));
 }
 
+function savedFromHome(email: string, data: Partial<SavedUserData>): SavedUserData {
+  const merged = { ...emptySavedUserData(), ...data };
+  if (merged.userProfile || merged.goal) return merged;
+  const local = localDataForEmail(email);
+  if (!local) return merged;
+  homeSave(local).catch(() => undefined);
+  return local;
+}
+
 function reviveTrainingData(data: SavedUserData) {
   const profile = data.userProfile as UserProfile | null;
   const plan = data.adaptivePlan as AdaptivePlan | null;
@@ -543,6 +562,20 @@ export const useAppStore = create<AppState>()(
       login: async (email, password) => {
         set({ authLoading: true, authError: null });
         try {
+          if (await detectHomeServer()) {
+            const session = await homeLogin(email, password);
+            setHomeToken(session.token);
+            const saved = reviveTrainingData(savedFromHome(email, session.data));
+            set({
+              isAuthenticated: true,
+              user: session.user,
+              authLoading: false,
+              showAuthModal: false,
+              authError: null,
+              ...saved,
+            });
+            return;
+          }
           const account = await authenticateAccount(email, password);
           const saved = reviveTrainingData(loadUserData(account.id));
           set({
@@ -564,6 +597,21 @@ export const useAppStore = create<AppState>()(
       register: async (name, email, password) => {
         set({ authLoading: true, authError: null });
         try {
+          if (await detectHomeServer()) {
+            const session = await homeRegister(name, email, password);
+            setHomeToken(session.token);
+            const saved = reviveTrainingData(savedFromHome(email, session.data));
+            set({
+              isAuthenticated: true,
+              user: session.user,
+              authLoading: false,
+              showAuthModal: false,
+              authError: null,
+              currentTab: 0,
+              ...saved,
+            });
+            return;
+          }
           const account = await registerAccount(name, email, password);
           set({
             isAuthenticated: true,
@@ -584,7 +632,12 @@ export const useAppStore = create<AppState>()(
 
       logout: () => {
         const state = get();
-        if (state.user?.id) saveUserData(state.user.id, snapshotFromState(state));
+        if (state.user?.id) {
+          const snapshot = snapshotFromState(state);
+          saveUserData(state.user.id, snapshot);
+          if (homeToken()) homeSave(snapshot).catch(() => undefined);
+        }
+        homeLogout();
         set({
           isAuthenticated: false,
           user: null,
@@ -1019,8 +1072,15 @@ export const useAppStore = create<AppState>()(
   )
 );
 
+let homeSaveTimer: ReturnType<typeof setTimeout> | undefined;
 useAppStore.subscribe((state) => {
   if (state.isAuthenticated && state.user?.id) {
-    saveUserData(state.user.id, snapshotFromState(state));
+    const snapshot = snapshotFromState(state);
+    saveUserData(state.user.id, snapshot);
+    if (!homeToken()) return;
+    if (homeSaveTimer) clearTimeout(homeSaveTimer);
+    homeSaveTimer = setTimeout(() => {
+      homeSave(snapshot).catch(() => undefined);
+    }, 400);
   }
 });

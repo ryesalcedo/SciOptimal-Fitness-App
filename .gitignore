@@ -1,5 +1,6 @@
 node_modules
 backend/.env
+server/data/*.json
 
 # Local Netlify folder
 .netlify

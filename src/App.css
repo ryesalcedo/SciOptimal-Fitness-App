@@ -266,6 +266,19 @@ input, textarea {
 }
 
 .error { color: #ffb4a8; }
+
+.you { margin: 0; }
+
+.file-row input {
+  margin-top: 6px;
+}
+
+.preview {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 12px;
+}
 .sr {
   position: absolute;
   width: 1px;

@@ -475,39 +475,12 @@ app.get('/api/training-phases', authenticateToken, async (req, res) => {
   }
 });
 
-// Admin Routes - Get All Users Data (for monitoring Devin)
-app.get('/api/admin/users', async (req, res) => {
-  try {
-    // In production, add proper admin authentication
-    const users = await User.find().select('-password');
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
+app.get('/api/admin/users', (_req, res) => {
+  res.status(401).json({ message: 'Sign-in is required.' });
 });
 
-app.get('/api/admin/user/:userId/data', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    
-    const [workouts, nutrition, sleep, progress, trainingPhases] = await Promise.all([
-      Workout.find({ userId }),
-      Nutrition.find({ userId }),
-      Sleep.find({ userId }),
-      Progress.find({ userId }),
-      TrainingPhase.find({ userId })
-    ]);
-
-    res.json({
-      workouts,
-      nutrition,
-      sleep,
-      progress,
-      trainingPhases
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
+app.get('/api/admin/user/:userId/data', (_req, res) => {
+  res.status(401).json({ message: 'Sign-in is required.' });
 });
 
 // Health Check

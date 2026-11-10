@@ -12,6 +12,9 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use((req, res) => {
+  res.status(401).json({ message: 'Sign-in is required. Run the home server on your PC.' });
+});
 
 // Simple in-memory storage
 const inMemoryDB = {

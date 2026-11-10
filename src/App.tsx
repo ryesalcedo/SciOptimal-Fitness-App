@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppStore } from './store';
 import Onboarding from './components/Onboarding';
 import TodayView from './components/TodayView';
@@ -14,6 +14,18 @@ function Welcome() {
   const [mode, setMode] = useState<'login' | 'register'>('register');
   const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
   const [localError, setLocalError] = useState('');
+  const [homeNote, setHomeNote] = useState('');
+
+  useEffect(() => {
+    fetch('/api/health')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (body && body.service === 'scioptimal-home') {
+          setHomeNote(`This PC keeps ${body.accounts} of ${body.maxAccounts} accounts.`);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
   const update = (field: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) => {
     setForm((current) => ({ ...current, [field]: event.target.value }));
@@ -48,6 +60,7 @@ function Welcome() {
       <p className="lede">
         Log lifts and food in one place. Targets start from your body, then follow your weight trend. When a set tops out, the next session moves up.
       </p>
+      {homeNote && <p className="muted">{homeNote}</p>}
       <form className="stack" onSubmit={submit}>
         <div className="choice-row">
           <button type="button" className={mode === 'login' ? 'choice on' : 'choice'} onClick={() => setMode('login')}>Log in</button>

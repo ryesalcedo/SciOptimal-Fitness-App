@@ -123,6 +123,14 @@ export function saveUserData(userId: string, data: SavedUserData) {
   localStorage.setItem(`${DATA_PREFIX}${userId}`, JSON.stringify(data));
 }
 
+export function localDataForEmail(email: string): SavedUserData | null {
+  const account = readAccounts().find((item) => item.email === normalizeEmail(email));
+  if (!account) return null;
+  const data = loadUserData(account.id);
+  if (!data.userProfile && !data.goal) return null;
+  return data;
+}
+
 export function loadUserData(userId: string): SavedUserData {
   try {
     const raw = localStorage.getItem(`${DATA_PREFIX}${userId}`);
