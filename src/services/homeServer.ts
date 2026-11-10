@@ -75,10 +75,10 @@ export async function homeLogout(): Promise<void> {
   }
 }
 
-export async function askCoach(message: string, image: string): Promise<{ reply: string; model: boolean }> {
+export async function askCoach(message: string, image: string): Promise<string> {
   const data = await request('/api/coach', 'POST', {
     message,
     image: image.startsWith('data:image/') ? image : '',
   }, true);
-  return { reply: String(data.reply || ''), model: Boolean(data.model) };
+  return String(data.reply || '');
 }

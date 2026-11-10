@@ -43,17 +43,16 @@ export default function CoachChat({ body }: { body: PhysiqueBody }) {
     if (homeToken()) {
       try {
         const remote = await askCoach(message, image);
-        if (remote.model && remote.reply) reply = remote.reply;
-        else if (!reply) reply = remote.reply;
-        else if (image) reply = `${reply} The photo stays on this request and is not saved.`;
+        if (!reply) reply = remote;
+        else if (image) reply = `${reply} The photo is not saved. The plan follows the sentence.`;
       } catch (caught) {
         const reason = caught instanceof Error ? caught.message : '';
         if (!reply) reply = reason || 'The coach on this PC did not answer.';
       }
     } else if (!reply) {
-      reply = 'Type the physique in a sentence, such as shredded at 170 with bigger shoulders. A photo is read only while this PC’s server is running.';
+      reply = 'Type the physique in a sentence, such as shredded at 170 with bigger shoulders.';
     } else if (image) {
-      reply = `${reply} The photo is not read until the home server is running.`;
+      reply = `${reply} The photo is not saved. The plan follows the sentence.`;
     }
     setMessages((current) => [
       ...current,

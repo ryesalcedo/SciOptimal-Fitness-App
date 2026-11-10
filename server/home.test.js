@@ -5,7 +5,6 @@ const os = require('os');
 const path = require('path');
 
 process.env.SCIOPTIMAL_DATA = path.join(os.tmpdir(), `scioptimal-${Date.now()}-${process.pid}.json`);
-process.env.OPENAI_API_KEY = '';
 process.env.SCIOPTIMAL_INVITE = 'joinus';
 const { server } = require('./home');
 

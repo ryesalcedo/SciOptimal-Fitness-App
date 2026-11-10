@@ -100,7 +100,7 @@ function localCoachReply(message, image, record) {
   const goal = record && record.goal;
   const parts = [];
   if (image) {
-    parts.push('The photo stays on this request and is not saved. Say what you want changed in words so the plan can follow it.');
+    parts.push('The photo is not saved. The plan follows the sentence you type.');
   }
   if (goal && goal.physiqueSummary) parts.push(goal.physiqueSummary);
   else if (goal) parts.push(`You are set to ${goal.type} toward ${goal.targetWeight} lb.`);
@@ -111,61 +111,6 @@ function localCoachReply(message, image, record) {
     parts.push('Stop the set if something hurts. This coach does not diagnose injuries.');
   }
   return parts.join(' ');
-}
-
-function modelReply(message, image, record) {
-  return new Promise((resolve) => {
-    if (!process.env.OPENAI_API_KEY) {
-      resolve(localCoachReply(message, image, record));
-      return;
-    }
-    const key = process.env.OPENAI_API_KEY;
-    const context = record && record.goal
-      ? `Plan: ${record.goal.type}, target ${record.goal.targetWeight} lb. ${record.goal.physiqueSummary || ''}`
-      : 'No plan yet.';
-    const userContent = image
-      ? [
-        { type: 'text', text: message || 'What should change for this photo?' },
-        { type: 'image_url', image_url: { url: image } },
-      ]
-      : (message || 'Hello');
-    const payload = JSON.stringify({
-      model: 'gpt-4o-mini',
-      messages: [
-        { role: 'system', content: `You coach one person in SciOptimal. Keep it under 80 words. Do not diagnose injuries. ${context}` },
-        { role: 'user', content: userContent },
-      ],
-    });
-    const https = require('https');
-    const request = https.request({
-      hostname: 'api.openai.com',
-      path: '/v1/chat/completions',
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${key}`,
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(payload),
-      },
-    }, (response) => {
-      const chunks = [];
-      response.on('data', (chunk) => chunks.push(chunk));
-      response.on('end', () => {
-        try {
-          const body = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-          const text = body.choices && body.choices[0] && body.choices[0].message && body.choices[0].message.content;
-          resolve(text || localCoachReply(message, image, record));
-        } catch {
-          resolve(localCoachReply(message, image, record));
-        }
-      });
-    });
-    request.on('error', () => resolve(localCoachReply(message, image, record)));
-    request.setTimeout(20000, () => {
-      request.destroy();
-      resolve(localCoachReply(message, image, record));
-    });
-    request.end(payload);
-  });
 }
 
 function readBody(request) {
@@ -209,7 +154,6 @@ async function handleApi(request, response, url) {
       service: 'scioptimal-home',
       accounts: store.accounts.length,
       maxAccounts: MAX_ACCOUNTS,
-      coachModel: Boolean(process.env.OPENAI_API_KEY),
       inviteRequired: true,
     });
   }
@@ -302,8 +246,8 @@ async function handleApi(request, response, url) {
     }
     const message = String(body.message || '').slice(0, 2000);
     const image = typeof body.image === 'string' && body.image.startsWith('data:image/') ? body.image : '';
-    const reply = await modelReply(message, image, store.records[account.id]);
-    return send(response, 200, { reply, model: Boolean(process.env.OPENAI_API_KEY) });
+    const reply = localCoachReply(message, image, store.records[account.id]);
+    return send(response, 200, { reply });
   }
 
   return send(response, 404, { message: 'Not found' });
@@ -363,7 +307,7 @@ if (require.main === module) {
   server.listen(PORT, HOST, () => {
     const code = inviteCode(readStore());
     console.log(`Sign-up code: ${code}`);
-    console.log(`Accounts allowed: ${MAX_ACCOUNTS}. Coach model: ${process.env.OPENAI_API_KEY ? 'on' : 'off'}.`);
+    console.log(`Accounts allowed: ${MAX_ACCOUNTS}.`);
     if (process.env.SCIOPTIMAL_SHARE) {
       console.log('Leave this window open. Both iPhones use the link printed below.');
       return;
