@@ -11,6 +11,7 @@
 
 html, body, #root {
   min-height: 100%;
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
 }
@@ -23,13 +24,15 @@ body {
 button, input, textarea {
   font: inherit;
   color: inherit;
+  touch-action: manipulation;
 }
 
 .welcome, .phone {
   width: min(480px, 100%);
   margin: 0 auto;
   min-height: 100vh;
-  padding: 28px 20px 108px;
+  min-height: 100dvh;
+  padding: calc(28px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(108px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
   box-sizing: border-box;
 }
 
@@ -37,7 +40,7 @@ button, input, textarea {
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
-  padding-bottom: 48px;
+  padding-bottom: calc(48px + env(safe-area-inset-bottom));
 }
 
 .eyebrow {
@@ -194,6 +197,7 @@ input, textarea {
   border: 1px solid var(--line);
   border-radius: 12px;
   padding: 12px;
+  font-size: 16px;
 }
 
 .plain {

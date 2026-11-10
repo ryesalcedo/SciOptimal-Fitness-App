@@ -270,7 +270,7 @@ interface AppState {
   swapExercise: (dayId: string, exerciseId: string) => void;
   addCustomFood: (food: CustomFood) => void;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string) => Promise<void>;
+  register: (name: string, email: string, password: string, invite?: string) => Promise<void>;
   logout: () => void;
   setShowAuthModal: (show: boolean) => void;
   setUserProfile: (profile: UserProfile) => void;
@@ -594,11 +594,11 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      register: async (name, email, password) => {
+      register: async (name, email, password, invite = '') => {
         set({ authLoading: true, authError: null });
         try {
           if (await detectHomeServer()) {
-            const session = await homeRegister(name, email, password);
+            const session = await homeRegister(name, email, password, invite);
             setHomeToken(session.token);
             const saved = reviveTrainingData(savedFromHome(email, session.data));
             set({

@@ -12,16 +12,18 @@ type Tab = 'today' | 'food' | 'train' | 'progress';
 function Welcome() {
   const { login, register, authLoading, authError } = useAppStore();
   const [mode, setMode] = useState<'login' | 'register'>('register');
-  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', invite: '' });
   const [localError, setLocalError] = useState('');
   const [homeNote, setHomeNote] = useState('');
+  const [needsInvite, setNeedsInvite] = useState(false);
 
   useEffect(() => {
     fetch('/api/health')
       .then((response) => (response.ok ? response.json() : null))
       .then((body) => {
         if (body && body.service === 'scioptimal-home') {
-          setHomeNote(`This PC keeps ${body.accounts} of ${body.maxAccounts} accounts.`);
+          setNeedsInvite(Boolean(body.inviteRequired));
+          setHomeNote(`This server keeps ${body.accounts} of ${body.maxAccounts} accounts. Open the same link in Safari on both iPhones.`);
         }
       })
       .catch(() => undefined);
@@ -47,7 +49,11 @@ function Welcome() {
         setLocalError('Passwords do not match');
         return;
       }
-      await register(form.name, form.email, form.password);
+      if (needsInvite && !form.invite.trim()) {
+        setLocalError('Enter the sign-up code from the PC.');
+        return;
+      }
+      await register(form.name, form.email, form.password, form.invite);
       return;
     }
     await login(form.email, form.password);
@@ -80,6 +86,11 @@ function Welcome() {
         {mode === 'register' && (
           <label>Confirm password
             <input name="confirmPassword" type="password" autoComplete="new-password" value={form.confirm} onChange={update('confirm')} />
+          </label>
+        )}
+        {mode === 'register' && needsInvite && (
+          <label>Sign-up code
+            <input name="invite" autoComplete="off" autoCapitalize="none" value={form.invite} onChange={update('invite')} />
           </label>
         )}
         {(localError || authError) && <p className="error">{localError || authError}</p>}

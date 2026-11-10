@@ -6,6 +6,7 @@ const path = require('path');
 
 process.env.SCIOPTIMAL_DATA = path.join(os.tmpdir(), `scioptimal-${Date.now()}-${process.pid}.json`);
 process.env.OPENAI_API_KEY = '';
+process.env.SCIOPTIMAL_INVITE = 'joinus';
 const { server } = require('./home');
 
 function call(port, method, pathname, { token, body } = {}) {
@@ -42,17 +43,23 @@ async function main() {
   const health = await call(port, 'GET', '/api/health');
   assert.strictEqual(health.body.service, 'scioptimal-home');
   assert.strictEqual(health.body.maxAccounts, 2);
+  assert.strictEqual(health.body.inviteRequired, true);
+
+  const missingCode = await call(port, 'POST', '/api/auth/register', {
+    body: { name: 'Sam', email: 'sam@example.com', password: 'secret3', invite: 'nope' },
+  });
+  assert.strictEqual(missingCode.status, 403);
 
   const ryan = await call(port, 'POST', '/api/auth/register', {
-    body: { name: 'Ryan', email: 'Ryan@Example.com', password: 'secret1' },
+    body: { name: 'Ryan', email: 'Ryan@Example.com', password: 'secret1', invite: 'joinus' },
   });
   assert.strictEqual(ryan.status, 201);
   const friend = await call(port, 'POST', '/api/auth/register', {
-    body: { name: 'Alex', email: 'alex@example.com', password: 'secret2' },
+    body: { name: 'Alex', email: 'alex@example.com', password: 'secret2', invite: 'joinus' },
   });
   assert.strictEqual(friend.status, 201);
   const third = await call(port, 'POST', '/api/auth/register', {
-    body: { name: 'Sam', email: 'sam@example.com', password: 'secret3' },
+    body: { name: 'Sam', email: 'sam@example.com', password: 'secret3', invite: 'joinus' },
   });
   assert.strictEqual(third.status, 403);
 

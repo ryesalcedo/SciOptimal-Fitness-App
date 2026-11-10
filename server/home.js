@@ -10,8 +10,41 @@ const DATA_FILE = process.env.SCIOPTIMAL_DATA || path.join(__dirname, 'data', 's
 const BUILD_DIR = path.join(__dirname, '..', 'build');
 const MAX_BODY = 2_000_000;
 
+const loginAttempts = new Map();
+
 function emptyStore() {
-  return { accounts: [], records: {}, sessions: {} };
+  return { accounts: [], records: {}, sessions: {}, inviteCode: '' };
+}
+
+function inviteCode(store) {
+  const fromEnv = String(process.env.SCIOPTIMAL_INVITE || '').trim().toLowerCase();
+  if (fromEnv) return fromEnv;
+  if (!store.inviteCode) {
+    store.inviteCode = crypto.randomBytes(3).toString('hex');
+    writeStore(store);
+  }
+  return store.inviteCode;
+}
+
+function clientKey(request) {
+  const forwarded = request.headers['cf-connecting-ip'];
+  if (typeof forwarded === 'string' && forwarded) return forwarded;
+  return request.socket.remoteAddress || 'local';
+}
+
+function tooManyLogins(request) {
+  const entry = loginAttempts.get(clientKey(request));
+  return Boolean(entry && entry.reset > Date.now() && entry.fails >= 8);
+}
+
+function noteLoginFailure(request) {
+  const key = clientKey(request);
+  const entry = loginAttempts.get(key);
+  if (!entry || entry.reset < Date.now()) {
+    loginAttempts.set(key, { fails: 1, reset: Date.now() + 15 * 60 * 1000 });
+    return;
+  }
+  entry.fails += 1;
 }
 
 function readStore() {
@@ -177,6 +210,7 @@ async function handleApi(request, response, url) {
       accounts: store.accounts.length,
       maxAccounts: MAX_ACCOUNTS,
       coachModel: Boolean(process.env.OPENAI_API_KEY),
+      inviteRequired: true,
     });
   }
 
@@ -194,6 +228,10 @@ async function handleApi(request, response, url) {
       if (!name) return send(response, 400, { message: 'Name is required' });
       if (!email.includes('@') || !email.includes('.')) return send(response, 400, { message: 'Enter a valid email address' });
       if (password.length < 6) return send(response, 400, { message: 'Password must be at least 6 characters' });
+      const invite = String(body.invite || '').trim().toLowerCase();
+      if (invite !== inviteCode(store)) {
+        return send(response, 403, { message: 'That sign-up code is wrong. It is shown on the PC running the server.' });
+      }
       if (store.accounts.length >= MAX_ACCOUNTS) {
         return send(response, 403, { message: 'This server already has its two accounts.' });
       }
@@ -213,10 +251,15 @@ async function handleApi(request, response, url) {
       writeStore(store);
       return send(response, 201, { token, user: publicAccount(account), data: {} });
     }
+    if (tooManyLogins(request)) {
+      return send(response, 429, { message: 'Too many sign-in tries. Wait a few minutes.' });
+    }
     const account = store.accounts.find((item) => item.email === email);
     if (!account || !checkPassword(password, account.passwordHash)) {
+      noteLoginFailure(request);
       return send(response, 401, { message: 'Email or password is wrong' });
     }
+    loginAttempts.delete(clientKey(request));
     const token = createSession(store, account.id);
     writeStore(store);
     return send(response, 200, { token, user: publicAccount(account), data: store.records[account.id] || {} });
@@ -318,9 +361,15 @@ const server = http.createServer((request, response) => {
 
 if (require.main === module) {
   server.listen(PORT, HOST, () => {
-    console.log(`SciOptimal is on http://127.0.0.1:${PORT}`);
-    console.log('Your friend uses this PC\'s address on the same Wi-Fi, port ' + PORT + '.');
+    const code = inviteCode(readStore());
+    console.log(`Sign-up code: ${code}`);
     console.log(`Accounts allowed: ${MAX_ACCOUNTS}. Coach model: ${process.env.OPENAI_API_KEY ? 'on' : 'off'}.`);
+    if (process.env.SCIOPTIMAL_SHARE) {
+      console.log('Leave this window open. Both iPhones use the link printed below.');
+      return;
+    }
+    console.log(`On this PC: http://127.0.0.1:${PORT}`);
+    console.log('Your friend is on another network, so stop this and run: npm run share');
   });
 }
 

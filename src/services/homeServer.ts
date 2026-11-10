@@ -52,8 +52,8 @@ async function request(path: string, method: string, body?: unknown, auth = fals
   return data;
 }
 
-export function homeRegister(name: string, email: string, password: string): Promise<HomeSession> {
-  return request('/api/auth/register', 'POST', { name, email, password });
+export function homeRegister(name: string, email: string, password: string, invite: string): Promise<HomeSession> {
+  return request('/api/auth/register', 'POST', { name, email, password, invite });
 }
 
 export function homeLogin(email: string, password: string): Promise<HomeSession> {
