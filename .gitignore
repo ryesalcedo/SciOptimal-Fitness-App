@@ -2,6 +2,7 @@ node_modules
 backend/.env
 server/data/*.json
 server/bin/
+SciOptimal-link.txt
 
 # Local Netlify folder
 .netlify
