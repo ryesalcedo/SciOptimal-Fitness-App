@@ -1,240 +1,296 @@
-/* SciOptimal Fitness App - Simple Black & White */
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+:root {
+  color-scheme: dark;
+  --bg: #0c0d10;
+  --card: #17181d;
+  --line: rgba(255, 255, 255, 0.08);
+  --text: #f5f5f4;
+  --muted: #8e8e93;
+  --accent: #d6ff4a;
+  --accent-ink: #14160c;
 }
 
 html, body, #root {
+  min-height: 100%;
+  min-height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+button, input, textarea {
+  font: inherit;
+  color: inherit;
+  touch-action: manipulation;
+}
+
+.welcome, .phone {
+  width: min(480px, 100%);
+  margin: 0 auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  padding: calc(28px + env(safe-area-inset-top)) calc(20px + env(safe-area-inset-right)) calc(108px + env(safe-area-inset-bottom)) calc(20px + env(safe-area-inset-left));
+  box-sizing: border-box;
+}
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding-bottom: calc(48px + env(safe-area-inset-bottom));
+}
+
+.eyebrow {
+  margin: 0 0 6px;
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+h1 {
+  margin: 0 0 8px;
+  font-size: 34px;
+  line-height: 1.05;
+  letter-spacing: -0.04em;
+}
+
+h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.lede, p {
+  line-height: 1.45;
+}
+
+.muted, small {
+  color: var(--muted);
+}
+
+.lede {
+  color: var(--muted);
+  max-width: 36ch;
+}
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.top, .split, .footer-actions, .inline-form, .choice-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.top, .split {
+  justify-content: space-between;
+}
+
+.hero-card, .card {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  padding: 16px;
+}
+
+.hero-number, .stat {
+  margin: 0;
+  font-size: 64px;
+  letter-spacing: -0.06em;
+  font-variant-numeric: tabular-nums;
+  line-height: 0.95;
+}
+
+.stat span, .hero-number span {
+  font-size: 18px;
+  color: var(--muted);
+}
+
+.score-pill {
+  min-width: 64px;
+  text-align: center;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 8px;
+}
+
+.score-pill strong {
+  display: block;
+  font-size: 22px;
+}
+
+.score-pill span, .macro .muted, .macro p {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.macro {
+  margin: 10px 0;
+}
+
+.bar {
+  height: 6px;
+  background: #2a2c33;
+  border-radius: 99px;
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
   height: 100%;
-  background: #000000 !important;
-  color: #ffffff !important;
-  font-family: Arial, sans-serif !important;
-  font-size: 14px !important;
+  background: var(--accent);
 }
 
-/* Override ALL Material-UI to be simple black/white */
-.MuiAppBar-root {
-  background: #000000 !important;
-  color: #ffffff !important;
-  border-bottom: 1px solid #333333 !important;
+.primary, .ghost, .choice, .chip, .text-button, .tabbar button {
+  border: 0;
+  cursor: pointer;
 }
 
-.MuiCard-root {
-  background: #000000 !important;
-  color: #ffffff !important;
-  border: 1px solid #333333 !important;
-  margin: 10px 0 !important;
+.primary {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: 999px;
+  padding: 12px 16px;
+  font-weight: 700;
 }
 
-.MuiTypography-root {
-  color: #ffffff !important;
+.ghost, .choice, .chip {
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 10px 12px;
 }
 
-.MuiButton-root {
-  background: #333333 !important;
-  color: #ffffff !important;
-  border: 1px solid #555555 !important;
-  padding: 8px 16px !important;
-  margin: 5px !important;
+.choice.on, .chip.on, .tabbar button.on {
+  background: var(--text);
+  color: #111;
 }
 
-.MuiButton-outlined {
-  background: #000000 !important;
-  border: 1px solid #555555 !important;
-  color: #ffffff !important;
+.text-button {
+  background: none;
+  color: var(--accent);
+  padding: 0;
 }
 
-.MuiChip-root {
-  background: #333333 !important;
-  color: #ffffff !important;
-  border: 1px solid #555555 !important;
+.wide { width: 100%; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.chips, .choice-row { flex-wrap: wrap; }
+.choice-row { margin: 4px 0 12px; }
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
-.MuiTextField-root .MuiOutlinedInput-root {
-  color: #ffffff !important;
-  background: #000000 !important;
-  border: 1px solid #555555 !important;
+input, textarea {
+  background: #101116;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 16px;
 }
 
-.MuiTextField-root .MuiOutlinedInput-notchedOutline {
-  border-color: #555555 !important;
+.plain {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
 }
 
-.MuiTextField-root .MuiInputLabel-root {
-  color: #aaaaaa !important;
+.plain li, .food-hit {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
 }
 
-.MuiContainer-root {
-  background: #000000 !important;
-  color: #ffffff !important;
+.food-hit {
+  width: 100%;
+  background: none;
+  border: 0;
+  text-align: left;
+  cursor: pointer;
 }
 
-.MuiTabs-root {
-  background: #000000 !important;
-  border-bottom: 1px solid #333333 !important;
+.plain small, .food-hit small {
+  display: block;
 }
 
-.MuiTab-root {
-  color: #aaaaaa !important;
-  background: #000000 !important;
+.set-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
 }
 
-.MuiTab-root.Mui-selected {
-  color: #ffffff !important;
-  background: #000000 !important;
+.set-grid .primary, .set-grid .ghost {
+  grid-column: span 3;
 }
 
-.MuiLinearProgress-root {
-  background: #333333 !important;
+.tabbar {
+  position: fixed;
+  z-index: 5;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: min(480px, 100%);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  padding: 10px 10px calc(10px + env(safe-area-inset-bottom));
+  background: rgba(12, 13, 16, 0.94);
+  border-top: 1px solid var(--line);
+  box-sizing: border-box;
 }
 
-.MuiLinearProgress-bar {
-  background: #ffffff !important;
+.tabbar button {
+  background: transparent;
+  color: var(--muted);
+  border-radius: 12px;
+  padding: 10px 0;
+  text-transform: capitalize;
 }
 
-.MuiDialog-paper {
-  background: #000000 !important;
-  color: #ffffff !important;
-  border: 1px solid #333333 !important;
+.rest {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-radius: 14px;
+  padding: 10px 12px;
+  font-weight: 700;
 }
 
-.MuiAlert-root {
-  background: #000000 !important;
-  color: #ffffff !important;
-  border: 1px solid #333333 !important;
+.error { color: #ffb4a8; }
+
+.you { margin: 0; }
+
+.file-row input {
+  margin-top: 6px;
 }
 
-.MuiCircularProgress-root {
-  color: #ffffff !important;
+.preview {
+  width: 120px;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 12px;
+}
+.sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
 }
 
-.MuiAvatar-root {
-  background: #333333 !important;
-  color: #ffffff !important;
-}
-
-.MuiListItem-root {
-  color: #ffffff !important;
-  background: #000000 !important;
-}
-
-.MuiListItemIcon-root {
-  color: #ffffff !important;
-}
-
-.MuiListItemText-root {
-  color: #ffffff !important;
-}
-
-.MuiDivider-root {
-  background: #333333 !important;
-}
-
-.MuiAccordion-root {
-  background: #000000 !important;
-  color: #ffffff !important;
-  border: 1px solid #333333 !important;
-}
-
-.MuiAccordionSummary-root {
-  background: #000000 !important;
-  color: #ffffff !important;
-}
-
-.MuiAccordionDetails-root {
-  background: #000000 !important;
-  color: #ffffff !important;
-}
-
-.MuiStepper-root {
-  background: #000000 !important;
-}
-
-.MuiStepLabel-root {
-  color: #ffffff !important;
-}
-
-.MuiStepIcon-root {
-  color: #555555 !important;
-}
-
-.MuiStepIcon-root.Mui-active {
-  color: #ffffff !important;
-}
-
-.MuiStepIcon-root.Mui-completed {
-  color: #ffffff !important;
-}
-
-.MuiBadge-root {
-  color: #ffffff !important;
-}
-
-.MuiBadge-badge {
-  background: #333333 !important;
-  color: #ffffff !important;
-}
-
-/* Simple custom classes */
-.fitness-card {
-  background: #000000 !important;
-  border: 1px solid #333333 !important;
-  color: #ffffff !important;
-  padding: 10px !important;
-  margin: 10px 0 !important;
-}
-
-.metric-card {
-  background: #000000 !important;
-  border: 1px solid #333333 !important;
-  color: #ffffff !important;
-  padding: 10px !important;
-  margin: 10px 0 !important;
-}
-
-.text-gradient {
-  color: #ffffff !important;
-  font-weight: bold !important;
-}
-
-.gradient-button {
-  background: #333333 !important;
-  color: #ffffff !important;
-  border: 1px solid #555555 !important;
-}
-
-.glass-effect {
-  background: #000000 !important;
-  border: 1px solid #333333 !important;
-}
-
-.status-online {
-  color: #ffffff !important;
-}
-
-.status-offline {
-  color: #aaaaaa !important;
-}
-
-/* Remove all fancy effects */
-.slide-in {
-  /* No animation */
-}
-
-/* Mobile */
-@media (max-width: 768px) {
-  .MuiContainer-root {
-    padding: 5px !important;
-  }
-  
-  .MuiCard-root {
-    margin: 5px 0 !important;
-    padding: 5px !important;
-  }
-  
-  body {
-    font-size: 12px !important;
-  }
-}
+.chart-card { height: 220px; }
+.footer-actions { margin-top: 8px; }
+button:disabled { opacity: 0.4; }

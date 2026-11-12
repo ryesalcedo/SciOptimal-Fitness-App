@@ -15,18 +15,19 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// MongoDB Connection - Use Atlas cloud database
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb+srv://scioptimal:scioptimal123@cluster0.mongodb.net/scioptimal?retryWrites=true&w=majority';
+// MongoDB connection. Set MONGODB_URI in the environment. There is no default credential.
+const MONGODB_URI = process.env.MONGODB_URI;
 
-mongoose.connect(MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+if (!MONGODB_URI) {
+  console.error('MONGODB_URI is not set. The API will start, but database routes will fail until it is configured.');
+} else {
+  mongoose.connect(MONGODB_URI);
+}
 
 const db = mongoose.connection;
 db.on('error', console.error.bind(console, 'MongoDB connection error:'));
 db.once('open', () => {
-  console.log('Connected to MongoDB Atlas');
+  console.log('Connected to MongoDB');
 });
 
 // User Schema
@@ -222,7 +223,10 @@ const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key');
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ message: 'JWT_SECRET is not set' });
+    }
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decoded;
     next();
   } catch (error) {
@@ -256,9 +260,12 @@ app.post('/api/auth/register', async (req, res) => {
     await user.save();
 
     // Generate token
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ message: 'JWT_SECRET is not set' });
+    }
     const token = jwt.sign(
       { userId: user._id, name: user.name },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -294,9 +301,12 @@ app.post('/api/auth/login', async (req, res) => {
     }
 
     // Generate token
+    if (!process.env.JWT_SECRET) {
+      return res.status(500).json({ message: 'JWT_SECRET is not set' });
+    }
     const token = jwt.sign(
       { userId: user._id, name: user.name },
-      process.env.JWT_SECRET || 'your-secret-key',
+      process.env.JWT_SECRET,
       { expiresIn: '7d' }
     );
 
@@ -465,39 +475,12 @@ app.get('/api/training-phases', authenticateToken, async (req, res) => {
   }
 });
 
-// Admin Routes - Get All Users Data (for monitoring Devin)
-app.get('/api/admin/users', async (req, res) => {
-  try {
-    // In production, add proper admin authentication
-    const users = await User.find().select('-password');
-    res.json(users);
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
+app.get('/api/admin/users', (_req, res) => {
+  res.status(401).json({ message: 'Sign-in is required.' });
 });
 
-app.get('/api/admin/user/:userId/data', async (req, res) => {
-  try {
-    const { userId } = req.params;
-    
-    const [workouts, nutrition, sleep, progress, trainingPhases] = await Promise.all([
-      Workout.find({ userId }),
-      Nutrition.find({ userId }),
-      Sleep.find({ userId }),
-      Progress.find({ userId }),
-      TrainingPhase.find({ userId })
-    ]);
-
-    res.json({
-      workouts,
-      nutrition,
-      sleep,
-      progress,
-      trainingPhases
-    });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
-  }
+app.get('/api/admin/user/:userId/data', (_req, res) => {
+  res.status(401).json({ message: 'Sign-in is required.' });
 });
 
 // Health Check

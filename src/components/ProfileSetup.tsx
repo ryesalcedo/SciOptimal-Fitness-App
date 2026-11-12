@@ -32,6 +32,7 @@ export default function ProfileSetup() {
   const [formData, setFormData] = useState({
     name: user?.name || '',
     age: '',
+    sex: 'male' as 'male' | 'female',
     height: '', // in inches
     weight: '', // in lbs
     bodyFatPercentage: '',
@@ -50,12 +51,18 @@ export default function ProfileSetup() {
   };
 
   const handleEquipmentToggle = (equipment: string) => {
-    setFormData(prev => ({
-      ...prev,
-      equipment: prev.equipment.includes(equipment)
-        ? prev.equipment.filter(e => e !== equipment)
-        : [...prev.equipment, equipment]
-    }));
+    setFormData(prev => {
+      if (equipment === 'None') {
+        return { ...prev, equipment: prev.equipment.includes('None') ? [] : ['None'] };
+      }
+      const withoutNone = prev.equipment.filter(item => item !== 'None');
+      return {
+        ...prev,
+        equipment: withoutNone.includes(equipment)
+          ? withoutNone.filter(item => item !== equipment)
+          : [...withoutNone, equipment]
+      };
+    });
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -64,16 +71,27 @@ export default function ProfileSetup() {
     setError(null);
 
     try {
+      const age = parseInt(formData.age, 10);
+      const height = parseInt(formData.height, 10);
+      const weight = parseInt(formData.weight, 10);
+      const bodyFatPercentage = parseFloat(formData.bodyFatPercentage);
+      if (age < 13 || age > 100) throw new Error('Age must be between 13 and 100');
+      if (height < 48 || height > 96) throw new Error('Height must be between 48 and 96 inches');
+      if (weight < 70 || weight > 500) throw new Error('Weight must be between 70 and 500 pounds');
+      if (bodyFatPercentage < 3 || bodyFatPercentage > 60) throw new Error('Body fat must be between 3% and 60%');
+
       const profile: UserProfile = {
         id: user?.id || 'temp-id',
-        name: formData.name,
-        age: parseInt(formData.age),
-        height: parseInt(formData.height),
-        weight: parseInt(formData.weight),
-        bodyFatPercentage: parseFloat(formData.bodyFatPercentage),
-        goalWeight: formData.goalWeight ? parseInt(formData.goalWeight) : undefined,
+        name: formData.name.trim(),
+        age,
+        sex: formData.sex,
+        height,
+        weight,
+        bodyFatPercentage,
+        goalWeight: formData.goalWeight ? parseInt(formData.goalWeight, 10) : undefined,
         targetPhysique: formData.targetPhysique,
         activityLevel: formData.activityLevel,
+        equipment: formData.equipment,
         createdAt: new Date()
       };
 
@@ -171,7 +189,7 @@ export default function ProfileSetup() {
                 />
               </Grid>
 
-              <Grid item xs={12} sm={6}>
+              <Grid item xs={12} sm={3}>
                 <TextField
                   fullWidth
                   label="Age"
@@ -192,6 +210,26 @@ export default function ProfileSetup() {
                     }
                   }}
                 />
+              </Grid>
+
+              <Grid item xs={12} sm={3}>
+                <FormControl fullWidth variant="outlined">
+                  <InputLabel sx={{ color: '#ffffff !important' }}>Sex</InputLabel>
+                  <Select
+                    value={formData.sex}
+                    label="Sex"
+                    onChange={handleSelectChange('sex')}
+                    sx={{
+                      color: '#ffffff !important',
+                      '& .MuiOutlinedInput-notchedOutline': {
+                        borderColor: '#333333 !important'
+                      }
+                    }}
+                  >
+                    <MenuItem value="male">Male</MenuItem>
+                    <MenuItem value="female">Female</MenuItem>
+                  </Select>
+                </FormControl>
               </Grid>
 
               {/* Physical Stats */}

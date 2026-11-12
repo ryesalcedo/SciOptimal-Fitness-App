@@ -12,6 +12,9 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json());
+app.use((req, res) => {
+  res.status(401).json({ message: 'Sign-in is required. Run the home server on your PC.' });
+});
 
 // Simple in-memory storage
 const inMemoryDB = {
@@ -25,7 +28,7 @@ const inMemoryDB = {
 };
 
 // JWT Secret
-const JWT_SECRET = process.env.JWT_SECRET || 'scioptimal-super-secret-jwt-key-2024';
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Generate simple IDs
 const generateId = () => 'id_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);

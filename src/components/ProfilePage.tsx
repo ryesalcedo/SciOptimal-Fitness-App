@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
   Card,
@@ -40,23 +40,31 @@ import {
   LocalFireDepartment,
   Speed
 } from '@mui/icons-material';
-import { useAppStore } from '../store';
+import { useAppStore, UserProfile } from '../store';
+import { NutritionCalculator } from '../services/nutritionCalculator';
+import { poundsToKilograms } from '../utils/units';
 
 export default function ProfilePage() {
   const { userProfile, setUserProfile } = useAppStore();
   const [isEditing, setIsEditing] = useState(false);
-  const [editProfile, setEditProfile] = useState(userProfile || {
+  const [editProfile, setEditProfile] = useState<UserProfile>(userProfile || {
     id: 'profile_1',
     name: 'User',
     age: 25,
-    height: 70, // inches
-    weight: 70, // kg
+    sex: 'male',
+    height: 70,
+    weight: 170,
     bodyFatPercentage: 15,
-    goalWeight: 75,
+    goalWeight: 165,
     targetPhysique: 'Athletic',
-    activityLevel: 'Moderately Active' as const,
+    activityLevel: 'Moderately Active',
+    equipment: [],
     createdAt: new Date()
   });
+
+  useEffect(() => {
+    if (userProfile) setEditProfile(userProfile);
+  }, [userProfile]);
 
   const handleSave = () => {
     setUserProfile(editProfile);
@@ -71,7 +79,8 @@ export default function ProfilePage() {
   const calculateBMI = () => {
     if (!editProfile.height || !editProfile.weight) return '0';
     const heightInMeters = editProfile.height * 0.0254;
-    return (editProfile.weight / (heightInMeters * heightInMeters)).toFixed(1);
+    const weightKg = poundsToKilograms(editProfile.weight);
+    return (weightKg / (heightInMeters * heightInMeters)).toFixed(1);
   };
 
   const getBMICategory = (bmi: number) => {
@@ -83,20 +92,16 @@ export default function ProfilePage() {
 
   const calculateBMR = () => {
     if (!editProfile.age || !editProfile.height || !editProfile.weight) return 0;
-    // Mifflin-St Jeor Equation
-    const bmr = 10 * editProfile.weight + 6.25 * (editProfile.height * 2.54) - 5 * editProfile.age + 5;
-    return Math.round(bmr);
+    return Math.round(NutritionCalculator.calculateBMR(
+      poundsToKilograms(editProfile.weight),
+      editProfile.height,
+      editProfile.age,
+      editProfile.sex || 'male'
+    ));
   };
 
   const calculateTDEE = () => {
-    const bmr = calculateBMR();
-    const activityMultipliers = {
-      'Sedentary': 1.2,
-      'Lightly Active': 1.375,
-      'Moderately Active': 1.55,
-      'Very Active': 1.9
-    };
-    return Math.round(bmr * (activityMultipliers[editProfile.activityLevel] || 1.55));
+    return NutritionCalculator.calculateNutritionTargets(editProfile).calories;
   };
 
   const bmi = calculateBMI();
@@ -145,7 +150,7 @@ export default function ProfilePage() {
                         size="small" 
                       />
                       <Chip 
-                        label={`${editProfile.weight} kg`} 
+                        label={`${editProfile.weight} lbs`} 
                         color="info" 
                         size="small" 
                       />
@@ -231,13 +236,13 @@ export default function ProfilePage() {
 
               <Box sx={{ mb: 2 }}>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Current Weight: {editProfile.weight} kg
+                  Current Weight: {editProfile.weight} lbs
                 </Typography>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Goal Weight: {editProfile.goalWeight || 'Not set'} kg
+                  Goal Weight: {editProfile.goalWeight || 'Not set'} lbs
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Difference: {editProfile.goalWeight ? editProfile.goalWeight - editProfile.weight : 0} kg
+                  Difference: {editProfile.goalWeight ? editProfile.goalWeight - editProfile.weight : 0} lbs
                 </Typography>
               </Box>
             </CardContent>
@@ -258,7 +263,7 @@ export default function ProfilePage() {
                   {tdee}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Daily Calorie Needs (TDEE)
+                  Daily calorie target
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
                   Based on {editProfile.activityLevel} activity level
@@ -294,7 +299,10 @@ export default function ProfilePage() {
                   Activity Level: {editProfile.activityLevel}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Goal Weight: {editProfile.goalWeight || 'Not set'} kg
+                  Goal Weight: {editProfile.goalWeight || 'Not set'} lbs
+                </Typography>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Equipment: {(editProfile.equipment && editProfile.equipment.length > 0) ? editProfile.equipment.join(', ') : 'Bodyweight'}
                 </Typography>
               </Box>
             </CardContent>
@@ -318,7 +326,7 @@ export default function ProfilePage() {
                   Daily Calorie Needs: {tdee} calories
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Weight Goal: {editProfile.goalWeight ? (editProfile.goalWeight - editProfile.weight > 0 ? '+' : '') + (editProfile.goalWeight - editProfile.weight) : 'Not set'} kg
+                  Weight Goal: {editProfile.goalWeight ? (editProfile.goalWeight - editProfile.weight > 0 ? '+' : '') + (editProfile.goalWeight - editProfile.weight) + ' lbs' : 'Not set'}
                 </Typography>
               </Box>
             </CardContent>
@@ -342,6 +350,19 @@ export default function ProfilePage() {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
+                  select
+                  label="Sex"
+                  value={editProfile.sex || 'male'}
+                  onChange={(e) => setEditProfile(prev => ({ ...prev, sex: e.target.value as UserProfile['sex'] }))}
+                  SelectProps={{ native: true }}
+                >
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  fullWidth
                   label="Height (inches)"
                   type="number"
                   value={editProfile.height}
@@ -351,7 +372,7 @@ export default function ProfilePage() {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Weight (kg)"
+                  label="Weight (lbs)"
                   type="number"
                   value={editProfile.weight}
                   onChange={(e) => setEditProfile(prev => ({ ...prev, weight: parseInt(e.target.value) || 0 }))}
@@ -369,7 +390,7 @@ export default function ProfilePage() {
               <Grid item xs={12} sm={6}>
                 <TextField
                   fullWidth
-                  label="Goal Weight (kg)"
+                  label="Goal Weight (lbs)"
                   type="number"
                   value={editProfile.goalWeight}
                   onChange={(e) => setEditProfile(prev => ({ ...prev, goalWeight: parseInt(e.target.value) || 0 }))}

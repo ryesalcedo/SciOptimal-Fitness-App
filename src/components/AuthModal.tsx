@@ -39,6 +39,7 @@ export default function AuthModal({
   error 
 }: AuthModalProps) {
   const [activeTab, setActiveTab] = useState(0);
+  const [localError, setLocalError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -48,6 +49,7 @@ export default function AuthModal({
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setActiveTab(newValue);
+    setLocalError(null);
     setFormData({ name: '', email: '', password: '', confirmPassword: '' });
   };
 
@@ -58,12 +60,16 @@ export default function AuthModal({
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     
+    setLocalError(null);
     if (activeTab === 0) {
-      // Login
       await onLogin(formData.email, formData.password);
     } else {
-      // Register
+      if (formData.password.length < 6) {
+        setLocalError('Password must be at least 6 characters');
+        return;
+      }
       if (formData.password !== formData.confirmPassword) {
+        setLocalError('Passwords do not match');
         return;
       }
       await onRegister(formData.name, formData.email, formData.password);
@@ -121,9 +127,9 @@ export default function AuthModal({
           </Tabs>
         </Box>
 
-        {error && (
+        {(localError || error) && (
           <Alert severity="error" sx={{ mb: 3, borderRadius: '8px' }}>
-            {error}
+            {localError || error}
           </Alert>
         )}
 

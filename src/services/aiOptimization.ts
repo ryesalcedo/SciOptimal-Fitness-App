@@ -240,7 +240,8 @@ class AIOptimizationService {
     // Weight progression analysis
     const recentProgress = progress.slice(-4);
     const weightChange = recentProgress[recentProgress.length - 1].weight - recentProgress[0].weight;
-    const weeks = (recentProgress[recentProgress.length - 1].date.getTime() - recentProgress[0].date.getTime()) / (7 * 24 * 60 * 60 * 1000);
+    const weeks = (new Date(recentProgress[recentProgress.length - 1].date).getTime() - new Date(recentProgress[0].date).getTime()) / (7 * 24 * 60 * 60 * 1000);
+    if (!Number.isFinite(weeks) || weeks <= 0) return insights;
     const weeklyWeightChange = weightChange / weeks;
 
     if (Math.abs(weeklyWeightChange) > 1.5) {

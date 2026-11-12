@@ -60,7 +60,7 @@ export default function WorkoutTracker({ workout, onComplete, onClose }: Workout
       name: exercise.name,
       sets: [],
       targetSets: exercise.sets,
-      targetReps: parseInt(exercise.reps.split('-')[0]) // Get first number from range
+      targetReps: parseInt(String(exercise.reps).split('-')[0], 10) || 8
     }))
   );
   const [editingSet, setEditingSet] = useState<{ exerciseId: string; setId: string } | null>(null);

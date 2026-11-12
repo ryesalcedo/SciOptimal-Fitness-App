@@ -13,7 +13,7 @@ body {
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 50%, #16213e 100%);
+  background: #0c0d10;
   min-height: 100vh;
 }
 
@@ -38,11 +38,6 @@ code {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #00c853;
-}
-
-/* Smooth transitions for all elements */
-* {
-  transition: all 0.2s ease-in-out;
 }
 
 /* Focus styles for accessibility */

@@ -1,4 +1,5 @@
 import { UserProfile } from '../store';
+import { poundsToKilograms } from '../utils/units';
 
 export interface NutritionTargets {
   calories: number;
@@ -217,18 +218,31 @@ export class NutritionCalculator {
   }
 
   /**
+   * Shift maintenance calories for the stated goal, then build macros from that target.
+   */
+  private static adjustCaloriesForGoal(tdee: number, goal: string): number {
+    const normalized = goal.toLowerCase();
+    if (normalized.includes('loss') || normalized.includes('lean')) return Math.max(1200, tdee - 400);
+    if (normalized.includes('gain') || normalized.includes('muscular') || normalized.includes('fullback')) {
+      return tdee + 300;
+    }
+    return tdee;
+  }
+
+  /**
    * Main function to calculate all nutrition targets
    */
   static calculateNutritionTargets(profile: UserProfile): NutritionTargets {
-    const gender = profile.name?.toLowerCase().includes('female') ? 'female' : 'male';
-    const bmr = this.calculateBMR(profile.weight, profile.height, profile.age, gender);
-    const tdee = this.calculateTDEE(bmr, profile.activityLevel);
+    const gender = profile.sex === 'female' ? 'female' : 'male';
+    const weightKg = poundsToKilograms(profile.weight);
+    const bmr = this.calculateBMR(weightKg, profile.height, profile.age, gender);
+    const tdee = this.adjustCaloriesForGoal(this.calculateTDEE(bmr, profile.activityLevel), profile.targetPhysique);
     
-    const leanBodyMass = this.calculateLeanBodyMass(profile.weight, profile.height, gender);
+    const leanBodyMass = this.calculateLeanBodyMass(weightKg, profile.height, gender);
     const bodyFatPercentage = profile.bodyFatPercentage;
     
     const protein = this.calculateProteinNeeds(
-      profile.weight, 
+      weightKg, 
       leanBodyMass, 
       bodyFatPercentage, 
       profile.activityLevel, 
@@ -236,15 +250,15 @@ export class NutritionCalculator {
     );
     
     const carbs = this.calculateCarbNeeds(
-      profile.weight, 
+      weightKg, 
       profile.activityLevel, 
       profile.targetPhysique, 
       tdee
     );
     
-    const fat = this.calculateFatNeeds(profile.weight, tdee, protein, carbs);
+    const fat = this.calculateFatNeeds(weightKg, tdee, protein, carbs);
     const fiber = this.calculateFiberNeeds(tdee);
-    const water = this.calculateWaterNeeds(profile.weight, profile.activityLevel);
+    const water = this.calculateWaterNeeds(weightKg, profile.activityLevel);
     
     // Calculate actual calories from macros
     const actualCalories = (protein * 4) + (carbs * 4) + (fat * 9);
@@ -287,10 +301,11 @@ export class NutritionCalculator {
     const rationale: string[] = [];
     
     // Protein rationale
+    const weightKg = poundsToKilograms(profile.weight);
     if (bodyFatPercentage > 20) {
-      rationale.push(`Protein: ${protein}g (${Math.round(protein/profile.weight*10)/10}g/kg) - Based on total weight due to higher body fat percentage (${bodyFatPercentage}%)`);
+      rationale.push(`Protein: ${protein}g (${Math.round(protein/weightKg*10)/10}g/kg) - Based on total weight due to higher body fat percentage (${bodyFatPercentage}%)`);
     } else {
-      rationale.push(`Protein: ${protein}g (${Math.round(protein/profile.weight*10)/10}g/kg) - Optimized for lean body mass and muscle protein synthesis`);
+      rationale.push(`Protein: ${protein}g (${Math.round(protein/weightKg*10)/10}g/kg) - Optimized for lean body mass and muscle protein synthesis`);
     }
     
     // Carb rationale

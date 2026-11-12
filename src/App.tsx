@@ -1,495 +1,130 @@
-import React from 'react';
-import {
-  ThemeProvider,
-  createTheme,
-  CssBaseline,
-  Box,
-  AppBar,
-  Toolbar,
-  Typography,
-  Container,
-  Card,
-  CardContent,
-  Button,
-  IconButton,
-  Drawer,
-  List,
-  ListItem,
-  ListItemIcon,
-  ListItemText,
-  useMediaQuery,
-  Fab,
-  Chip,
-  Avatar,
-  Divider,
-  Menu
-} from '@mui/material';
-import {
-  FitnessCenter,
-  Speed,
-  Science,
-  CloudSync,
-  HealthAndSafety,
-  Settings,
-  Menu as MenuIcon,
-  Person,
-  SmartToy,
-  MonitorHeart
-} from '@mui/icons-material';
+import React, { useEffect, useState } from 'react';
 import { useAppStore } from './store';
-import EnhancedDashboard from './components/EnhancedDashboard';
-import AIOptimizationPanel from './components/AIOptimizationPanel';
-import AuthModal from './components/AuthModal';
-import ResearchPanel from './components/ResearchPanel';
-import ProfileSetup from './components/ProfileSetup';
-import ProfilePage from './components/ProfilePage';
-import SmartAIChat from './components/SmartAIChat';
-import SmartDashboard from './components/SmartDashboard';
+import Onboarding from './components/Onboarding';
+import TodayView from './components/TodayView';
+import FoodLogView from './components/FoodLogView';
+import TrainView from './components/TrainView';
+import ProgressView from './components/ProgressView';
 import './App.css';
 
-// Create a comprehensive theme
-const theme = createTheme({
-  palette: {
-    mode: 'dark',
-    primary: {
-      main: '#ffffff',
-    },
-    secondary: {
-      main: '#ffffff',
-    },
-    background: {
-      default: '#000000',
-      paper: '#000000',
-    },
-    text: {
-      primary: '#ffffff',
-      secondary: '#ffffff',
-    },
-  },
-  components: {
-    MuiCssBaseline: {
-      styleOverrides: {
-        body: {
-          background: '#000000 !important',
-          color: '#ffffff !important',
-        },
-      },
-    },
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          background: '#000000 !important',
-          border: '1px solid #333333 !important',
-          color: '#ffffff !important',
-        },
-      },
-    },
-    MuiAppBar: {
-      styleOverrides: {
-        root: {
-          background: '#000000 !important',
-          borderBottom: '1px solid #333333 !important',
-        },
-      },
-    },
-    MuiTypography: {
-      styleOverrides: {
-        root: {
-          color: '#ffffff !important',
-        },
-      },
-    },
-    MuiChip: {
-      styleOverrides: {
-        root: {
-          background: '#333333 !important',
-          color: '#ffffff !important',
-        },
-      },
-    },
-  },
-});
+type Tab = 'today' | 'food' | 'train' | 'progress';
 
-// Error Boundary Component
-class ErrorBoundary extends React.Component<any, { hasError: boolean; error: any }> {
-  constructor(props: any) {
-    super(props);
-    this.state = { hasError: false, error: null };
-  }
+function Welcome() {
+  const { login, register, authLoading, authError } = useAppStore();
+  const [mode, setMode] = useState<'login' | 'register'>('register');
+  const [form, setForm] = useState({ name: '', email: '', password: '', confirm: '', invite: '' });
+  const [localError, setLocalError] = useState('');
+  const [homeNote, setHomeNote] = useState('');
+  const [needsInvite, setNeedsInvite] = useState(false);
 
-  static getDerivedStateFromError(error: any) {
-    return { hasError: true, error };
-  }
+  useEffect(() => {
+    fetch('/api/health')
+      .then((response) => (response.ok ? response.json() : null))
+      .then((body) => {
+        if (body && body.service === 'scioptimal-home') {
+          setNeedsInvite(Boolean(body.inviteRequired));
+          setHomeNote(`This server keeps ${body.accounts} of ${body.maxAccounts} accounts. Open the same link in Safari on both iPhones.`);
+        }
+      })
+      .catch(() => undefined);
+  }, []);
 
-  componentDidCatch(error: any, errorInfo: any) {
-  }
+  const update = (field: keyof typeof form) => (event: React.ChangeEvent<HTMLInputElement>) => {
+    setForm((current) => ({ ...current, [field]: event.target.value }));
+  };
 
-  render() {
-    if (this.state.hasError) {
-      return (
-        <ThemeProvider theme={theme}>
-          <CssBaseline />
-          <Box sx={{ 
-            minHeight: '100vh',
-            background: '#000000',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            p: 3
-          }}>
-            <Card sx={{ 
-              maxWidth: 400,
-              width: '100%',
-              background: '#000000',
-              border: '1px solid #333333',
-              borderRadius: '16px'
-            }}>
-              <CardContent sx={{ textAlign: 'center', p: 4 }}>
-                <Typography variant="h4" sx={{ color: '#ffffff', mb: 2 }}>
-                  Something went wrong
-                </Typography>
-                <Typography variant="body2" sx={{ color: '#ffffff', mb: 3 }}>
-                  Please refresh the page to try again
-                </Typography>
-                <Button 
-                  variant="contained" 
-                  onClick={() => window.location.reload()}
-                  sx={{ 
-                    background: '#ffffff',
-                    color: '#000000',
-                    '&:hover': {
-                      background: '#cccccc'
-                    }
-                  }}
-                >
-                  Refresh Page
-                </Button>
-              </CardContent>
-            </Card>
-          </Box>
-        </ThemeProvider>
-      );
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setLocalError('');
+    if (mode === 'register') {
+      if (!form.name.trim()) {
+        setLocalError('Name is required');
+        return;
+      }
+      if (form.password.length < 6) {
+        setLocalError('Password must be at least 6 characters');
+        return;
+      }
+      if (form.password !== form.confirm) {
+        setLocalError('Passwords do not match');
+        return;
+      }
+      if (needsInvite && !form.invite.trim()) {
+        setLocalError('Enter the sign-up code from the PC.');
+        return;
+      }
+      await register(form.name, form.email, form.password, form.invite);
+      return;
     }
+    await login(form.email, form.password);
+  };
 
-    return this.props.children;
-  }
+  return (
+    <main className="phone">
+      <p className="eyebrow">SciOptimal</p>
+      <h1>Know the workout, the meal, and the rest day.</h1>
+      <p className="lede">
+        Log lifts and food in one place. Targets start from your body, then follow your weight trend. When a set tops out, the next session moves up.
+      </p>
+      {homeNote && <p className="muted">{homeNote}</p>}
+      <form className="stack" onSubmit={submit}>
+        <div className="choice-row">
+          <button type="button" className={mode === 'login' ? 'choice on' : 'choice'} onClick={() => setMode('login')}>Log in</button>
+          <button type="button" className={mode === 'register' ? 'choice on' : 'choice'} onClick={() => setMode('register')}>Sign up</button>
+        </div>
+        {mode === 'register' && (
+          <label>Name
+            <input name="name" autoComplete="name" value={form.name} onChange={update('name')} />
+          </label>
+        )}
+        <label>Email
+          <input name="email" type="email" autoComplete="email" value={form.email} onChange={update('email')} required />
+        </label>
+        <label>Password
+          <input name="password" type="password" autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={form.password} onChange={update('password')} required />
+        </label>
+        {mode === 'register' && (
+          <label>Confirm password
+            <input name="confirmPassword" type="password" autoComplete="new-password" value={form.confirm} onChange={update('confirm')} />
+          </label>
+        )}
+        {mode === 'register' && needsInvite && (
+          <label>Sign-up code
+            <input name="invite" autoComplete="off" autoCapitalize="none" value={form.invite} onChange={update('invite')} />
+          </label>
+        )}
+        {(localError || authError) && <p className="error">{localError || authError}</p>}
+        <button className="primary" type="submit" disabled={authLoading}>
+          {authLoading ? 'Working…' : mode === 'login' ? 'Log in' : 'Create account'}
+        </button>
+      </form>
+    </main>
+  );
 }
 
-// Main App Component
 function App() {
-  const {
-    isAuthenticated,
-    user,
-    userProfile,
-    currentTab,
-    setCurrentTab,
-    showAuthModal,
-    setShowAuthModal,
-    authLoading,
-    authError,
-    logout,
-    loadUserData,
-    login,
-    register
-  } = useAppStore();
+  const { isAuthenticated, userProfile, goal, program } = useAppStore();
+  const [tab, setTab] = useState<Tab>('today');
 
-  const [mobileOpen, setMobileOpen] = React.useState(false);
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  if (!isAuthenticated) return <Welcome />;
 
-  const handleDrawerToggle = () => {
-    setMobileOpen(!mobileOpen);
-  };
+  if (!userProfile || !goal || !program) return <Onboarding />;
 
-  // Load user data when authenticated
-  React.useEffect(() => {
-    if (isAuthenticated && !userProfile) {
-    }
-  }, [isAuthenticated, userProfile, loadUserData]);
-
-  // Navigation items
-  const navigationItems = [
-    { label: 'Dashboard', icon: <FitnessCenter />, value: 0 },
-    { label: 'AI Coach', icon: <SmartToy />, value: 1 },
-    { label: 'Smart Dashboard', icon: <MonitorHeart />, value: 2 },
-    { label: 'Profile', icon: <Person />, value: 3 },
-    { label: 'Optimize', icon: <Speed />, value: 4 },
-    { label: 'Research', icon: <Science />, value: 5 },
-  ];
-
-  // Drawer content
-  const drawer = (
-    <Box sx={{ width: 250, height: '100%', background: '#000000', color: '#ffffff' }}>
-      <Toolbar>
-        <Typography variant="h6" sx={{ color: '#ffffff !important' }}>
-          SciOptimal
-        </Typography>
-      </Toolbar>
-      <Divider sx={{ borderColor: '#333333' }} />
-      <List>
-        {navigationItems.map((item) => (
-          <ListItem
-            key={item.label}
-            button
-            onClick={() => {
-              setCurrentTab(item.value);
-              if (isMobile) setMobileOpen(false);
-            }}
-            selected={currentTab === item.value}
-            sx={{
-              '&.Mui-selected': {
-                backgroundColor: '#333333',
-              },
-            }}
-          >
-            <ListItemIcon sx={{ color: '#ffffff' }}>
-              {item.icon}
-            </ListItemIcon>
-            <ListItemText primary={item.label} />
-          </ListItem>
+  return (
+    <div className="phone">
+      {tab === 'today' && <TodayView onFood={() => setTab('food')} onTrain={() => setTab('train')} onProgress={() => setTab('progress')} />}
+      {tab === 'food' && <FoodLogView />}
+      {tab === 'train' && <TrainView />}
+      {tab === 'progress' && <ProgressView />}
+      <nav className="tabbar">
+        {(['today', 'food', 'train', 'progress'] as Tab[]).map((item) => (
+          <button key={item} type="button" className={tab === item ? 'on' : ''} onClick={() => setTab(item)}>
+            {item}
+          </button>
         ))}
-      </List>
-      <Divider sx={{ borderColor: '#333333' }} />
-      <List>
-        <ListItem button onClick={logout}>
-          <ListItemIcon sx={{ color: '#ffffff' }}>
-            <Settings />
-          </ListItemIcon>
-          <ListItemText primary="Logout" />
-        </ListItem>
-      </List>
-    </Box>
-  );
-
-  // Render content based on tab
-  const renderTabContent = () => {
-    try {
-      // Show profile setup if user is authenticated but has no profile
-      if (isAuthenticated && !userProfile) {
-        return <ProfileSetup />;
-      }
-      
-      switch (currentTab) {
-        case 0:
-          return <EnhancedDashboard />;
-        case 1:
-          return <SmartAIChat />;
-        case 2:
-          return <SmartDashboard />;
-        case 3:
-          return <ProfilePage />;
-        case 4:
-          return <AIOptimizationPanel />;
-        case 5:
-          return <ResearchPanel />;
-        default:
-          return <EnhancedDashboard />;
-      }
-    } catch (error) {
-      return (
-        <Box sx={{ p: 3, textAlign: 'center' }}>
-          <Typography variant="h6" sx={{ color: '#ffffff' }}>
-            Error loading content
-          </Typography>
-        </Box>
-      );
-    }
-  };
-
-  // Welcome screen for unauthenticated users
-  if (!isAuthenticated) {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <Box sx={{ 
-          minHeight: '100vh',
-          background: '#000000',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          p: 3
-        }}>
-          <Card sx={{ 
-            maxWidth: 400,
-            width: '100%',
-            background: '#000000',
-            border: '1px solid #333333',
-            borderRadius: '16px'
-          }}>
-            <CardContent sx={{ textAlign: 'center', p: 4 }}>
-              <FitnessCenter sx={{ fontSize: 64, color: '#ffffff', mb: 2 }} />
-              <Typography variant="h4" sx={{ color: '#ffffff !important', mb: 1 }}>
-                SciOptimal
-              </Typography>
-              <Typography variant="h6" sx={{ color: '#ffffff !important', mb: 3 }}>
-                AI-Powered Fitness
-              </Typography>
-              <Typography variant="body2" sx={{ color: '#ffffff', mb: 3 }}>
-                Sign in to access your personalized fitness journey
-              </Typography>
-              <Button 
-                variant="contained" 
-                size="large"
-                onClick={() => setShowAuthModal(true)}
-                sx={{ 
-                  background: '#ffffff',
-                  color: '#000000',
-                  '&:hover': {
-                    background: '#cccccc'
-                  }
-                }}
-              >
-                Get Started
-              </Button>
-            </CardContent>
-          </Card>
-        </Box>
-        
-        <AuthModal 
-          open={showAuthModal}
-          onClose={() => setShowAuthModal(false)}
-          onLogin={login}
-          onRegister={register}
-          loading={authLoading}
-          error={authError}
-        />
-      </ThemeProvider>
-    );
-  }
-
-  // Profile setup for authenticated users without profile
-  if (isAuthenticated && !userProfile) {
-    return (
-      <ThemeProvider theme={theme}>
-        <CssBaseline />
-        <ProfileSetup />
-      </ThemeProvider>
-    );
-  }
-
-  // Main app interface
-  return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box sx={{ display: 'flex', minHeight: '100vh', background: '#000000' }}>
-        {/* App Bar */}
-        <AppBar position="fixed" sx={{ zIndex: theme.zIndex.drawer + 1 }}>
-          <Toolbar>
-            <IconButton
-              color="inherit"
-              aria-label="open drawer"
-              edge="start"
-              onClick={handleDrawerToggle}
-              sx={{ mr: 2, display: { md: 'none' } }}
-            >
-              <MenuIcon />
-            </IconButton>
-            <Typography variant="h6" noWrap component="div" sx={{ color: '#ffffff !important' }}>
-              SciOptimal Fitness
-            </Typography>
-            <Box sx={{ flexGrow: 1 }} />
-            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-              <Chip
-                icon={<HealthAndSafety />}
-                label="Health Connected"
-                color="primary"
-                variant="outlined"
-                sx={{ color: '#ffffff', borderColor: '#333333' }}
-              />
-              <Avatar sx={{ bgcolor: '#333333' }}>
-                {user?.name?.charAt(0) || 'U'}
-              </Avatar>
-            </Box>
-          </Toolbar>
-        </AppBar>
-
-        {/* Navigation Drawer */}
-        <Box
-          component="nav"
-          sx={{ width: { md: 250 }, flexShrink: { md: 0 } }}
-        >
-          <Drawer
-            variant="temporary"
-            open={mobileOpen}
-            onClose={handleDrawerToggle}
-            ModalProps={{
-              keepMounted: true,
-            }}
-            sx={{
-              display: { xs: 'block', md: 'none' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 250 },
-            }}
-          >
-            {drawer}
-          </Drawer>
-          <Drawer
-            variant="permanent"
-            sx={{
-              display: { xs: 'none', md: 'block' },
-              '& .MuiDrawer-paper': { boxSizing: 'border-box', width: 250 },
-            }}
-            open
-          >
-            {drawer}
-          </Drawer>
-        </Box>
-
-        {/* Main Content */}
-        <Box
-          component="main"
-          sx={{
-            flexGrow: 1,
-            p: 3,
-            width: { md: `calc(100% - 250px)` },
-            mt: 8,
-            background: '#000000',
-            minHeight: '100vh'
-          }}
-        >
-          <Container maxWidth="xl">
-            {renderTabContent()}
-          </Container>
-        </Box>
-
-        {/* Floating Action Button for Health Sync */}
-        <Fab
-          color="primary"
-          aria-label="sync health data"
-          sx={{
-            position: 'fixed',
-            bottom: 16,
-            right: 16,
-            background: '#ffffff',
-            color: '#000000',
-            '&:hover': {
-              background: '#cccccc',
-            },
-          }}
-        >
-          <CloudSync />
-        </Fab>
-      </Box>
-
-      {/* Auth Modal */}
-      <AuthModal 
-        open={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onLogin={login}
-        onRegister={register}
-        loading={authLoading}
-        error={authError}
-      />
-    </ThemeProvider>
+      </nav>
+    </div>
   );
 }
 
-// Wrap App with Error Boundary
-function AppWithErrorBoundary() {
-  return (
-    <ErrorBoundary>
-      <App />
-    </ErrorBoundary>
-  );
-}
-
-export default AppWithErrorBoundary;// Force rebuild Tue Sep  9 08:06:59 PM EDT 2025
-// Build timestamp: Thu Sep 11 07:46:58 PM EDT 2025
+export default App;
